@@ -170,9 +170,9 @@
 ## 文件上传到github通常的步骤：
 
 + `git add <filename>`将工作区的修改提交到暂存区
+  + `git add .`添加当前目录内所有文件
 + `git commit -m <message>` 将暂存区修改提交到分支
 + ![image-20210812190550185](D:\note_file\note_git\image-20210812190550185.png)
-
 + `git push origin <分支名>` 将分支推送到远程仓库(github)
 
 ## 文件从github上删除通常的步骤：
