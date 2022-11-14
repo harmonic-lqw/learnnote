@@ -12,6 +12,10 @@
     + 对于重建图像并不是计算和真实图像的距离，而是通过判别器判别哪个是真实图像哪个是重建图像
   + 后者把E当作一个正则项去优化Z，就是将每次生成的图片经过E得到一个Z去和原Z计算损失，作者说可以把充分利用生成器的域的语义信息，通过E把Z限制到与训练的G的隐空间域，使Z带有更多的语义信息。
 
+## Model
+
++ ![image-20221114191941886](D:\note_file\note_article\GAN_inversion.assets\image-20221114191941886.png)
+
 
 # (e4e)Designing an Encoder for StyleGAN Image Manipulation
 
@@ -41,3 +45,14 @@
 ## Model
 
 + ![image-20221108215203961](D:\note_file\note_article\GAN_inversion.assets\image-20221108215203961.png)
++ ![image-20221109103612046](D:\note_file\note_article\GAN_inversion.assets\image-20221109103612046.png)
++ **map2style**：a set of 2-strided convolutions followed by LeakyReLU activations
+
+# ReStyle: A Residual-Based StyleGAN Encoder via Iterative Refinement
+
+## Model
+
++ 所提出架构中的Encoder可以是PSP或E4E，所以是一个通用架构
++ ![image-20221109105548115](D:\note_file\note_article\GAN_inversion.assets\image-20221109105548115.png)
++ 作者通过Restyle方式减小了对Encoder的复杂度的要求，所以对PSP和E4E中使用的FPN结构进行简化，取得了近似的结果
++ ![image-20221109105852170](D:\note_file\note_article\GAN_inversion.assets\image-20221109105852170.png)
