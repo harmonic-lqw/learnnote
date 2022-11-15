@@ -29,7 +29,7 @@
 
 ## Model
 
-+ ![image-20221108182349336](GAN_inversion.assets/image-20221115213904953.png)
++ ![image-20221108182349336](GAN_inversion.assets/image-20221108182349336.png)
 + ![image-20221108183618107](GAN_inversion.assets\image-20221108183618107.png)
 + ![image-20221108183625769](GAN_inversion.assets\image-20221108183625769.png)
 
