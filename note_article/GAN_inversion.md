@@ -6,12 +6,20 @@
 
 # In-Domain GAN Inversion for Real Image Editing
 
-## Model
+## Motivation
+
++ 直接对Z进行基于学习的反演，重建效果很差
++ 直接基于优化的方法，Z的可编辑性又差，因为没有重复利用与训练的GAN的隐空间的语义信息
+
+## Contribution
 
 + 提出两部优化，domain-guided和domain-regularized
   + 前者学习一个Encoder
     + 对于重建图像并不是计算和真实图像的距离，而是通过判别器判别哪个是真实图像哪个是重建图像
   + 后者把Encoder当作一个正则项。在给定目标图像后，一是用来找到一个初始化Z，二是能够在优化Z的时候作为一个正则项，使优化的Z尽可能的在GAN的语义空间内。就是加入一个新的损失-每次生成的图片经过E得到一个Z去和原Z计算损失（文中称域内损失）。作者说可以把充分利用生成器的域的语义信息，通过E把Z限制到与训练的G的隐空间域，使Z带有更多的语义信息，但如此肯定会影响Z的一个图像重建效果。
+
+## Model
+
 + ![image-20221115213904953](GAN_inversion.assets/image-20221115213904953.png)
 
 ## Code
