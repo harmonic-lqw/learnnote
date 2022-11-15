@@ -28,9 +28,9 @@
 
 ## Model
 
-+ ![image-20221108182349336](GAN_inversion.assets\image-20221108182349336.png)
-+ ![image-20221108183618107](GAN_inversion.assets\image-20221108183618107.png)
-+ ![image-20221108183625769](GAN_inversion.assets\image-20221108183625769.png)
++ ![image-20221108182349336](GAN_inversion.assets/image-20221108182349336.png)
++ ![image-20221108183618107](GAN_inversion.assets/image-20221108183618107.png)
++ ![image-20221108183625769](GAN_inversion.assets/image-20221108183625769.png)
 
 # (pSp)Encoding in Style: a StyleGAN Encoder for Image-to-Image Translation
 
@@ -45,8 +45,9 @@
 
 ## Model
 
-+ ![image-20221108215203961](GAN_inversion.assets\image-20221108215203961.png)
-+ ![image-20221109103612046](GAN_inversion.assets\image-20221109103612046.png)
++ ![image-20221108215203961](GAN_inversion.assets/image-20221108215203961.png)
+
++ ![image-20221109103612046](GAN_inversion.assets/image-20221109103612046.png)
 + **map2style**：a set of 2-strided convolutions followed by LeakyReLU activations
 
 # ReStyle: A Residual-Based StyleGAN Encoder via Iterative Refinement
@@ -54,8 +55,7 @@
 ## Model
 
 + 所提出架构中的Encoder可以是PSP或E4E，所以是一个通用架构
-+ ![image-20221109105548115](GAN_inversion.assets\image-20221109105548115.png)
++ ![image-20221109105548115](GAN_inversion.assets/image-20221109105548115.png)
 + 作者通过Restyle方式减小了对Encoder的复杂度的要求，所以对PSP和E4E中使用的FPN结构进行简化，取得了近似的结果
-+ ![image-20221109105852170](GAN_inversion.assets\image-20221109105852170.png)
-+ ![image-20221109105852170](D:\note_file\note_article\GAN_inversion.assets\image-20221109105852170.png)
++ ![image-20221109105852170](GAN_inversion.assets/image-20221109105852170.png)
 + 
