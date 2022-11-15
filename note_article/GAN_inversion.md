@@ -18,7 +18,6 @@
 
 + 
 
-
 # (e4e)Designing an Encoder for StyleGAN Image Manipulation
 
 + 重构图片的效果、可编辑性的强弱，分别用distortion和editability代表distortion低（表示重构图片效果较好）的一般editability能力弱。
@@ -58,4 +57,5 @@
 + ![image-20221109105548115](GAN_inversion.assets\image-20221109105548115.png)
 + 作者通过Restyle方式减小了对Encoder的复杂度的要求，所以对PSP和E4E中使用的FPN结构进行简化，取得了近似的结果
 + ![image-20221109105852170](GAN_inversion.assets\image-20221109105852170.png)
++ ![image-20221109105852170](D:\note_file\note_article\GAN_inversion.assets\image-20221109105852170.png)
 + 
