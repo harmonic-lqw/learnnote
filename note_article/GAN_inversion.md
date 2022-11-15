@@ -30,9 +30,9 @@
 
 ## Model
 
-+ ![image-20221108182349336](D:\note_file\note_article\GAN_inversion.assets\image-20221108182349336.png)
-+ ![image-20221108183618107](D:\note_file\note_article\GAN_inversion.assets\image-20221108183618107.png)
-+ ![image-20221108183625769](D:\note_file\note_article\GAN_inversion.assets\image-20221108183625769.png)
++ ![image-20221108182349336](GAN_inversion.assets\image-20221108182349336.png)
++ ![image-20221108183618107](GAN_inversion.assets\image-20221108183618107.png)
++ ![image-20221108183625769](GAN_inversion.assets\image-20221108183625769.png)
 
 # (pSp)Encoding in Style: a StyleGAN Encoder for Image-to-Image Translation
 
@@ -47,8 +47,8 @@
 
 ## Model
 
-+ ![image-20221108215203961](D:\note_file\note_article\GAN_inversion.assets\image-20221108215203961.png)
-+ ![image-20221109103612046](D:\note_file\note_article\GAN_inversion.assets\image-20221109103612046.png)
++ ![image-20221108215203961](GAN_inversion.assets\image-20221108215203961.png)
++ ![image-20221109103612046](GAN_inversion.assets\image-20221109103612046.png)
 + **map2style**：a set of 2-strided convolutions followed by LeakyReLU activations
 
 # ReStyle: A Residual-Based StyleGAN Encoder via Iterative Refinement
