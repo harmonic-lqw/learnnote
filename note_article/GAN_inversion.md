@@ -22,10 +22,6 @@
 
 + ![image-20221115213904953](GAN_inversion.assets/image-20221115213904953.png)
 
-## Code
-
-+ 
-
 # (e4e)Designing an Encoder for StyleGAN Image Manipulation
 
 + 重构图片的效果、可编辑性的强弱，分别用distortion和editability代表distortion低（表示重构图片效果较好）的一般editability能力弱。
