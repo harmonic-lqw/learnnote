@@ -4,6 +4,43 @@
 + 基于优化的方法迭代次数多，训练时间长，但是选择合适的空间，重建能力很强，不过因为不容易控制隐变量的分布，所以得到的z不适合编辑（脱离预训练生成器的隐空间）
 + 基于学习的方法速度快，但是重构能力低，需要设计很好的网络结构和损失，以及好的训练Encoer的方法
 
+# Image2StyleGAN: How to Embed Images Into the StyleGAN Latent Space?
+
+## Contribution
+
++ 提出一种基于优化的GAN反演方法
++ 提出一个新的W+隐空间
++ 对隐空间的特性进行研究
+
+## Method
+
++ ![image-20221116192506811](GAN_inversion.assets/image-20221116192506811.png)
+
+## Question
+
++ 基于优化的方法是不是也受限于生成器的预训练数据集？
+  + image2style解释了，生成效果不太受限于stylegan生成器预训练的数据集，不过在人脸ffhq上训练后，在人脸类和其他类都有不错的反演效果，包括插值属性也不错，但在猫、卧室等数据集上训练的生成器，反演其他的类别图像效果就会弱很多，可能是因为人脸的分布与其他类别数据分布的重合导致。
++ 后续文章也证明，完全基于优化的方法，隐向量Z的可编辑性很不好，因为已经把Z优化出了GAN预训练的隐空间（富含语义信息）
+  + 在人脸数据集上训练的StyleGAN，对人脸的插值还可以，对其他类别图像的插值识别不出来
+  + 在其他类图像（车、猫、卧室）数据集上训练的StyleGAN，对其自身和其他类图像的线性插值效果都很差
+
+# Image2StyleGAN++: How to Edit the Embedded Images?
+
+## Contribution
+
++ 对前作进行一些改进
++ 算法允许缺失、局部近似嵌入等局部被修改的图像的反演
++ <u>embedding和activation tensor manipulation结合，提高全局语义编辑和局部编辑的效果</u>
++ 得到的隐向量对下游的图像编辑效果更好
+
+## Method
+
++ 优化的隐向量不仅是W+空间中的w，同时还有一个噪声向量n
+  + （w，n）共同重建图像，共同梯度优化，先优化w后n
+  + 确保尽可能多的信息被编码在 w 中，并且仅在噪声空间中编码高频细节
++ 优化的时候使用三种spatial masks，提高算法的局部编辑能力
++ ![image-20221116193037607](GAN_inversion.assets/image-20221116193037607.png)
+
 # In-Domain GAN Inversion for Real Image Editing
 
 ## Motivation
@@ -21,6 +58,10 @@
 ## Model
 
 + ![image-20221115213904953](GAN_inversion.assets/image-20221115213904953.png)
+
+## Question
+
++ 推理时，给Encoder输入一个训练数据分布以外的图像，效果会很差。训练时如果使用的数据集和GAN生成器预训练的数据集不同，训练出来的Encoder可能也会很差。说明训练过程还是比较依赖GAN生成器预训练的那个数据集的分布。
 
 # (e4e)Designing an Encoder for StyleGAN Image Manipulation
 
@@ -54,7 +95,7 @@
 + ![image-20221109103612046](GAN_inversion.assets/image-20221109103612046.png)
 + **map2style**：a set of 2-strided convolutions followed by LeakyReLU activations
 
-# ReStyle: A Residual-Based StyleGAN Encoder via Iterative Refinement
+# **ReStyle: A Residual-Based StyleGAN Encoder via Iterative Refinement**
 
 ## Model
 
@@ -62,4 +103,3 @@
 + ![image-20221109105548115](GAN_inversion.assets/image-20221109105548115.png)
 + 作者通过Restyle方式减小了对Encoder的复杂度的要求，所以对PSP和E4E中使用的FPN结构进行简化，取得了近似的结果
 + ![image-20221109105852170](GAN_inversion.assets/image-20221109105852170.png)
-+ 
