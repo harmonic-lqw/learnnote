@@ -61,12 +61,14 @@
 
 ## Code
 
-+ <u>代码中W和W+的采样和实现方式</u>   
++  W空间和W+空间，前者输到生成器每一层A的w都是一样的（类似正常StyleGAN训练时的输入），后者不一样（所以有18个不同的w，这18个不同的w就构成了W+空间）
++ 虽然图中，easy_synthesize获得W+空间得隐向量得时候，18个w相同，但如果在W+空间上进行反演，那么优化后就会有18个不同的w，相对应，如果是在W空间上进行反演，那么经过truncation后还是会得到18个相同的w输入到StyleGAN生成器每一层对应的A中
+
 + 其中输入到生成器中的隐向量均是未经过风格调制层A的，A属于训练好的生成器的范围内；因此无论是W还是W+空间，输入到生成器中的隐向量都会经过一个A，将隐向量变换成Style（对于每一个卷积层）
   + stylegan_generator_network.py
     + EpilogueBlock：每个卷积层后的操作，包括噪声、风格调制等
     + StyleModulationLayer：即风格调制层，其中包括所说的A（DenseBlock）
-+ ![image-20221117142922182](GAN_inversion.assets/image-20221117142922182.png)
++ ![image-20221117163407383](GAN_inversion.assets/image-20221117163407383.png)
 
 ## Question
 
