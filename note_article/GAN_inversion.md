@@ -59,9 +59,18 @@
 
 + ![image-20221115213904953](GAN_inversion.assets/image-20221115213904953.png)
 
+## Code
+
++ <u>代码中W和W+的采样和实现方式</u>   
++ 其中输入到生成器中的隐向量均是未经过风格调制层A的，A属于训练好的生成器的范围内；因此无论是W还是W+空间，输入到生成器中的隐向量都会经过一个A，将隐向量变换成Style（对于每一个卷积层）
+  + stylegan_generator_network.py
+    + EpilogueBlock：每个卷积层后的操作，包括噪声、风格调制等
+    + StyleModulationLayer：即风格调制层，其中包括所说的A（DenseBlock）
++ ![image-20221117142922182](GAN_inversion.assets/image-20221117142922182.png)
+
 ## Question
 
-+ 推理时，给Encoder输入一个训练数据分布以外的图像，效果会很差。训练时如果使用的数据集和GAN生成器预训练的数据集不同，训练出来的Encoder可能也会很差。说明训练过程还是比较依赖GAN生成器预训练的那个数据集的分布。
++ 推理时，给Encoder输入一个训练数据分布以外的图像，效果会很差。训练时如果使用的数据集和GAN生成器预训练的数据集不同，训练出来的Encoder可能也会很差。说明训练过程还是比较依赖GAN生成器预训练的那个数据集的分布。这很大程度上限制了许多Image-to-Image tasks。
 
 # (e4e)Designing an Encoder for StyleGAN Image Manipulation
 
