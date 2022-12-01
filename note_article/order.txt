@@ -1,4 +1,4 @@
 cd D:\note_file
-git add note_article/
-git commit -m "note_article"
+git add note_article/*
+git commit -m "e4e"
 git push origin master

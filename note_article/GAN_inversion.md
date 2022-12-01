@@ -61,14 +61,18 @@
 
 ## Code
 
-+  W空间和W+空间，前者输到生成器每一层A的w都是一样的（类似正常StyleGAN训练时的输入），后者不一样（所以有18个不同的w，这18个不同的w就构成了W+空间）
++ W空间和W+空间，前者输到生成器每一层A的w都是一样的（类似正常StyleGAN训练时的输入），后者不一样（所以有18个不同的w，这18个不同的w就构成了W+空间）
+
 + 虽然图中，easy_synthesize获得W+空间得隐向量得时候，18个w相同，但如果在W+空间上进行反演，那么优化后就会有18个不同的w，相对应，如果是在W空间上进行反演，那么经过truncation后还是会得到18个相同的w输入到StyleGAN生成器每一层对应的A中
 
-+ 其中输入到生成器中的隐向量均是未经过风格调制层A的，A属于训练好的生成器的范围内；因此无论是W还是W+空间，输入到生成器中的隐向量都会经过一个A，将隐向量变换成Style（对于每一个卷积层）
++ 其中输入到生成器中的隐向量均是未经过风格调制层A的，A属于训练好的生成器的范围内；因此无论是W还是W+空间，输入到生成器中的隐向量都会经过一个A，将隐向量变换成Style（对于每一个卷积层）(甚至到了StyleGAN，都没有A了)
   + stylegan_generator_network.py
     + EpilogueBlock：每个卷积层后的操作，包括噪声、风格调制等
     + StyleModulationLayer：即风格调制层，其中包括所说的A（DenseBlock）
+  
 + ![image-20221117163407383](GAN_inversion.assets/image-20221117163407383.png)
+
+  <!--可能错误-->
 
 ## Question
 
@@ -76,17 +80,25 @@
 
 # (e4e)Designing an Encoder for StyleGAN Image Manipulation
 
-+ 重构图片的效果、可编辑性的强弱，分别用distortion和editability代表distortion低（表示重构图片效果较好）的一般editability能力弱。
++ 深入研究distortion和editability（perception）的权衡。重构图片的效果、可编辑性的强弱，分别用distortion和editability代表，distortion低（表示重构图片效果较好）的一般editability能力弱。
 
 ## Contribution
 
-+ 作者观察到W空间的重建能力弱，W+空间的可编辑能力弱，作者希望得到训练一个编码器，使图片能映射到隐空间上，同时设计损失保证可编辑的能力
++ 仔细研究了隐空间，对隐空间类别进行更精细的解耦和分析，希望得到一个在重建质量与（可编辑性、感知质量）两者间的权衡
++ 分两步训练一个编码器，使W*k空间向W空间靠拢，希望牺牲较少的重建质量，得到更好的编辑性，约束编辑效果
++ 同时使用L2和lpips和id_loss共同来约束失真效果
 
 ## Model
 
 + ![image-20221108182349336](GAN_inversion.assets/image-20221108182349336.png)
++ 提高感知和编辑能力的损失
 + ![image-20221108183618107](GAN_inversion.assets/image-20221108183618107.png)
 + ![image-20221108183625769](GAN_inversion.assets/image-20221108183625769.png)
++ ![image-20221201140220535](GAN_inversion.assets/image-20221201140220535.png)
++ 减少失真的损失
++ ![image-20221201140200334](GAN_inversion.assets/image-20221201140200334.png)
++ 总损失
++ ![image-20221201140234408](GAN_inversion.assets/image-20221201140234408.png)
 
 # (pSp)Encoding in Style: a StyleGAN Encoder for Image-to-Image Translation
 
@@ -105,6 +117,71 @@
 
 + ![image-20221109103612046](GAN_inversion.assets/image-20221109103612046.png)
 + **map2style**：a set of 2-strided convolutions followed by LeakyReLU activations
+
+## Code
+
++ StyleMixing 中W+：随机采样z，8层全连接层生成w（相当于随机采样w），之后复制18份
+
++ Naive W+ 就是一个512到512*18的全连接网络来实现的
+
++ ```python
+  if train:
+      if Coach(opts):
+          # 初始化网络
+          if pSp(opts):
+              # encoder_type == 'GradualStyleEncoder'、'BackboneEncoderUsingLastLayerIntoW'、'BackboneEncoderUsingLastLayerIntoWPlus'
+              if psp_encoders.GradualStyleEncoder(num_layers=50, mode='ir_se', opts=opts):
+                  if get_blocks(num_layers=50):
+                      # 每一个block第一个Bottleneck修改通道数、降低一半特征图，后续几个Boottleneck不再修改
+                      return "一个ResNet blocks" "后续传入unit_module中构建下采样网络"
+              	if GradualStyleBlock(in_c=512, out_c=512, spatial=16/32/64): # 相当于Map2Style层，分别从对应的分便率下采样到一个Style
+                  	return "那一层对应的风格"
+                  return encoder
+              decoder = Generator(self.opts.output_size, 512, 8)
+              load_weights() # 直接加载训练好的pSp的checkpoints或预训练模型
+              return pSp # Initialize network
+          "训练所必须的初始化"
+          # 开始训练
+          if pSp.train():
+              if pSp.forward():
+                  if encoder.forward():
+                      return codes # (18, 512)
+                  if decoder.forward():
+                      return images, result_latent
+              if calc_loss(x, y, y_hat, latent):
+                  # loss：论文中的总损失，loss_dict：存储各种损失，id_logs：见id_loss.py
+                  return loss, loss_dict, id_logs
+          "梯度反传"
+          "优化"
+  python scripts/inference.py \
+  --exp_dir=/home/upc/Mydisk/UBT/my_pSp_test/experiment/Stanford_Car \
+  --checkpoint_path=/home/upc/Mydisk/UBT/Auxiliary_models/pSp/pretrained_checkpoint/psp_ffhq_encode.pt \
+  --data_path=/home/upc/Mydisk/UBT/dataset/Stanford_Car/cars_train \
+  --test_batch_size=8 \
+  --test_workers=4 \
+  --couple_outputs
+  
+  python scripts/calc_losses_on_images.py \
+  --mode lpips \
+  --data_path=/home/upc/Mydisk/UBT/my_pSp_test/experiment/Stanford_Car/inference_results \
+  --gt_path=/home/upc/Mydisk/UBT/dataset/Stanford_Car/cars_train \
+              
+         	
+          
+  ```
+  
+  
+
+## Question
+
++ Ranger optimizer
++ 双立方下采样、双线性插值上采样
++ 条件图像生成的训练和推理过程
+  + source是输入到网路中的数据集，所以是草图或者分割图，target是要重建的图，所以是正常的图片
+  + 因此在正常训练Encoder的时候source和target都是一样的数据集
+
+
+
 
 # **ReStyle: A Residual-Based StyleGAN Encoder via Iterative Refinement**
 
