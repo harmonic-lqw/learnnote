@@ -165,8 +165,63 @@
   --mode lpips \
   --data_path=/home/upc/Mydisk/UBT/my_pSp_test/experiment/Stanford_Car/inference_results \
   --gt_path=/home/upc/Mydisk/UBT/dataset/Stanford_Car/cars_train \
-              
-         	
+  
+  # 训练church
+  # 无NEGCUT
+  python scripts/train.py \
+  --dataset_type=church_encode \
+  --exp_dir=/home/upc/Mydisk/UBT/pSp_church2/experiment \
+  --workers=8 \
+  --batch_size=3 \
+  --test_batch_size=3 \
+  --test_workers=8 \
+  --val_interval=2500 \
+  --save_interval=5000 \
+  --encoder_type=GradualStyleEncoder \
+  --start_from_latent_avg \
+  --lpips_lambda=0.8 \
+  --l2_lambda=1 \
+  --output_size=256 \
+  --stylegan_weights=/home/upc/Mydisk/UBT/Auxiliary_models/pSp/pretrained_models/stylegan2-church-config-f.pt \
+  --image_interval=1000 \
+  --checkpoint_path=/home/upc/Mydisk/UBT/pSp_church/experiment/checkpoints/best_model.pt
+  
+  # 有NEGCUT
+  python scripts/train.py \
+  --dataset_type=church_encode \
+  --exp_dir=/home/upc/Mydisk/UBT/pSp_church_con2/experiment \
+  --workers=8 \
+  --batch_size=2 \
+  --test_batch_size=2 \
+  --test_workers=8 \
+  --val_interval=2500 \
+  --save_interval=5000 \
+  --encoder_type=GradualStyleEncoder \
+  --start_from_latent_avg \
+  --lpips_lambda=0.8 \
+  --l2_lambda=1 \
+  --output_size=256 \
+  --stylegan_weights=/home/upc/Mydisk/UBT/Auxiliary_models/pSp/pretrained_models/stylegan2-church-config-f.pt \
+  --max_steps=750000
+  
+  nohup python scripts/train.py \
+  > --dataset_type=church_encode \
+  > --exp_dir=/home/upc/Mydisk/UBT/pSp_church2/experiment \
+  > --workers=8 \
+  > --batch_size=3 \
+  > --test_batch_size=3 \
+  > --test_workers=8 \
+  > --val_interval=2500 \
+  > --save_interval=5000 \
+  > --encoder_type=GradualStyleEncoder \
+  > --start_from_latent_avg \
+  > --lpips_lambda=0.8 \
+  > --l2_lambda=1 \
+  > --output_size=256 \
+  > --stylegan_weights=/home/upc/Mydisk/UBT/Auxiliary_models/pSp/pretrained_models/stylegan2-church-config-f.pt \
+  > --image_interval=1000 \
+  > --checkpoint_path=/home/upc/Mydisk/UBT/pSp_church/experiment/checkpoints/best_model.pt >> /home/upc/Mydisk/UBT/pSp_church2/church_train.log 2>&1 &
+  
           
   ```
   
@@ -174,13 +229,14 @@
 
 ## Question
 
-+ Ranger optimizer
-+ 双立方下采样、双线性插值上采样
++ <u>Ranger optimizer</u>
++ 双立方下采样、双立方上采样
+  + 其实都是双立方的形式，即使用某点映射到原图中点的附近16个点的像素值的加权和作为该点的像素值
+  + 上采样和下采样其实都是一个映射函数，即`src_(x,y) = dst_(x,y) / scale`，其中缩放尺度`scale = dst / src`
+
 + 条件图像生成的训练和推理过程
   + source是输入到网路中的数据集，所以是草图或者分割图，target是要重建的图，所以是正常的图片
   + 因此在正常训练Encoder的时候source和target都是一样的数据集
-
-
 
 
 # **ReStyle: A Residual-Based StyleGAN Encoder via Iterative Refinement**
@@ -191,3 +247,56 @@
 + ![image-20221109105548115](GAN_inversion.assets/image-20221109105548115.png)
 + 作者通过Restyle方式减小了对Encoder的复杂度的要求，所以对PSP和E4E中使用的FPN结构进行简化，取得了近似的结果
 + ![image-20221109105852170](GAN_inversion.assets/image-20221109105852170.png)
+
+# Interpreting the Latent Space of GANs for Semantic Face Editing
+
+## Contribution
+
++ 提出InterFaceGAN，通过解释GAN学习到的潜在语义来进行语义面部编辑（2.2节上面探讨了多个属性之间的解耦性）
++ 提供一种人脸属性编辑方式，沿着对应属性方向进行线性编辑`z'=z+αn`
+
+## Model
+
++ ![image-20221201182006163](GAN_inversion.assets/image-20221201182006163.png)
++ 每一个属性在隐空间中存在一个超平面作为分割界限，超平面的单位法向量定义为n。
++ 定义一个语义得分：得分函数为
+
+  + ![image-20221201182322844](GAN_inversion.assets/image-20221201182322844.png)
+
+  + d：一个不太严格的距离定义，表示Latent code——z距离超平面的距离。
+
+    + ![image-20221201182621260](GAN_inversion.assets/image-20221201182621260.png)
+
+  + $$\lambda$$：度量语义随距离改变的速度
++ 有了这个新方向，沿着新方向移动z，就可以改变属性1而对属性2没有影响。（论文中称作conditional manipulation操作）
++ 同时，如果有多个属性需要条件化，我们只需减去原始方向到由所有条件化方向构成的平面上的投影。（如果有多个属性，就让需要修改的那个属性对应的单位法向量，依次减去其在其他所有属性的单位法向量上的投影，得到的新方向就是解耦了其他属性的修改方向，即修改这个属性，对其他属性没有影响。）
+
+# (S-Space)StyleSpace Analysis: Disentangled Controls for StyleGAN Image Generation
+
+## Motivation
+
++ 目前隐空间单个属性通常与其他属性耦合，解耦性不好
+
+## Contribution
+
++ 提出一个解耦性更好的S空间
++ 提出两个方法：
+  + 一个检测S向量的通道具体控制图像的哪一部分区域
+  + 一个检测S向量的通道具体控制图像的哪一种属性
+
++ 一个新的解耦性评价指标：Attribute Dependency（AD）：
+  + 度量沿着某个方向的操作在多大程度上引起了其他属性的变化，可以通过这些属性的分类器来度量
+  + AD越低，解纠缠越好
+
+
+## Model
+
++ ![image-20221214205507678](GAN_inversion.assets/image-20221214205507678.png)
++ **w1 → s1, w2 → s2, w2 → stRGB。在 W 空间中，w1 和 w2 是相同的向量，且所有层都相同。在 W+ 空间中，w1 和 w2 是两个不同的向量，且每个主要层都有自己的对 (w1, w2)**
++ ![image-20221214205615595](GAN_inversion.assets/image-20221214205615595.png)
++ **S空间的各个层**
+
+## Question
+
++ DCI计算
++ 梯度图的计算
