@@ -154,73 +154,40 @@
           "梯度反传"
           "优化"
   python scripts/inference.py \
-  --exp_dir=/home/upc/Mydisk/UBT/my_pSp_test/experiment/Stanford_Car \
-  --checkpoint_path=/home/upc/Mydisk/UBT/Auxiliary_models/pSp/pretrained_checkpoint/psp_ffhq_encode.pt \
-  --data_path=/home/upc/Mydisk/UBT/dataset/Stanford_Car/cars_train \
+  --exp_dir=/home/upc/Mydisk/UBT/my_pSp_test/experiment/church_con_7layer \
+  --checkpoint_path=/home/upc/Mydisk/UBT/pSp_church_7layer/experiment/checkpoints/best_model.pt \
+  --data_path=/home/upc/Mydisk/UBT/dataset/LSUN_church/church_outdoor_val \
   --test_batch_size=8 \
   --test_workers=4 \
   --couple_outputs
   
   python scripts/calc_losses_on_images.py \
   --mode lpips \
-  --data_path=/home/upc/Mydisk/UBT/my_pSp_test/experiment/Stanford_Car/inference_results \
-  --gt_path=/home/upc/Mydisk/UBT/dataset/Stanford_Car/cars_train \
+  --data_path=/home/upc/Mydisk/UBT/my_pSp_test/experiment/church_con_7layer/inference_results \
+  --gt_path=/home/upc/Mydisk/UBT/dataset/LSUN_church/church_outdoor_val \
   
   # 训练church
-  # 无NEGCUT
   python scripts/train.py \
   --dataset_type=church_encode \
-  --exp_dir=/home/upc/Mydisk/UBT/pSp_church2/experiment \
-  --workers=8 \
-  --batch_size=3 \
-  --test_batch_size=3 \
-  --test_workers=8 \
-  --val_interval=2500 \
-  --save_interval=5000 \
-  --encoder_type=GradualStyleEncoder \
-  --start_from_latent_avg \
-  --lpips_lambda=0.8 \
-  --l2_lambda=1 \
-  --output_size=256 \
-  --stylegan_weights=/home/upc/Mydisk/UBT/Auxiliary_models/pSp/pretrained_models/stylegan2-church-config-f.pt \
-  --image_interval=1000 \
-  --checkpoint_path=/home/upc/Mydisk/UBT/pSp_church/experiment/checkpoints/best_model.pt
-  
-  # 有NEGCUT
-  python scripts/train.py \
-  --dataset_type=church_encode \
-  --exp_dir=/home/upc/Mydisk/UBT/pSp_church_con2/experiment \
+  --exp_dir=/home/upc/Mydisk/UBT/pSp_church_00con/experiment \
   --workers=8 \
   --batch_size=2 \
   --test_batch_size=2 \
   --test_workers=8 \
-  --val_interval=2500 \
-  --save_interval=5000 \
+  --val_interval=1000 \
+  --save_interval=50000 \
   --encoder_type=GradualStyleEncoder \
   --start_from_latent_avg \
   --lpips_lambda=0.8 \
   --l2_lambda=1 \
   --output_size=256 \
   --stylegan_weights=/home/upc/Mydisk/UBT/Auxiliary_models/pSp/pretrained_models/stylegan2-church-config-f.pt \
-  --max_steps=750000
+  --max_steps=100000 \
+  --optim_name=adam \
+  --use_con \
+  --con_lambda=0.0 \
   
-  nohup python scripts/train.py \
-  > --dataset_type=church_encode \
-  > --exp_dir=/home/upc/Mydisk/UBT/pSp_church2/experiment \
-  > --workers=8 \
-  > --batch_size=3 \
-  > --test_batch_size=3 \
-  > --test_workers=8 \
-  > --val_interval=2500 \
-  > --save_interval=5000 \
-  > --encoder_type=GradualStyleEncoder \
-  > --start_from_latent_avg \
-  > --lpips_lambda=0.8 \
-  > --l2_lambda=1 \
-  > --output_size=256 \
-  > --stylegan_weights=/home/upc/Mydisk/UBT/Auxiliary_models/pSp/pretrained_models/stylegan2-church-config-f.pt \
-  > --image_interval=1000 \
-  > --checkpoint_path=/home/upc/Mydisk/UBT/pSp_church/experiment/checkpoints/best_model.pt >> /home/upc/Mydisk/UBT/pSp_church2/church_train.log 2>&1 &
+  nohup >> /home/upc/Mydisk/UBT/pSp_church_00con/church_train.log 2>&1 &
   
           
   ```
@@ -300,3 +267,68 @@
 
 + DCI计算
 + 梯度图的计算
+
+# (HyperStyle)StyleGAN Inversion with HyperNetworks for Real Image Editing
+
+## Motivation
+
++ 原来的方法应用在大规模真实场景中还是有一定限制，理由为下一点
++ 直接基于调整生成器的方法不现实且需要依据具体的每个输入的目标图像去优化生成器，学习时间较长（PTI）
++ 之前基于训练超网络的方法参数量过大
+
+## Contribution
+
++ 提出一个超网络（HyperNetwork）：学习调节 StyleGAN 的权重，以在潜在空间的可编辑区域中忠实地表达给定图像。
++ 模型参数量减少到与现存继续Encoder的方法的参数量相差不多
++ 重建效果好（基于学习的时间内逼近基于优化的效果）
++ 提出一个新的度量模型编辑性的方法：使用不同步长范围进行编辑，并沿此范围绘制测量的单位相似度，从而为每种反演方法绘制连续的相似度曲线。
+  + 因为不同的反演方法，使用相同的编辑步长会产生不同的编辑强度，这给身份相似性的测量带来偏差
+
+## Model
+
++ ![image-20221221102444512](GAN_inversion.assets/image-20221221102444512.png)
+  + 使用共享细化块（块内的卷积层是独立的，进行特征图的下采样，只是后接两个共享的全连接层）：只在1\*1\*512\*512之间共享
+  + 只对mid和fine部分的非toRGB层进行权重修改
+    + 实验证明修改toRGB层会影响编辑性
+    + 初始化反演倾向于捕捉粗粒度部分
+  + 借鉴Restyle的思想对于一个目标图像循环训练几次H
+
+## Question
+
++ 推理的时候也是循环几次吗？
++ 如何理解文中提出的能够泛化到外域图像（ps：这里的外域是需要有相似语义信息的域）：
+  + 在源域上训练的H，直接拿来对目标域生成器进行修改（！此时初始重建是源域生成器生成还是目标域生成器生成）
+  + 直接对H和G训练过程中从未见过的图像域进行反演和编辑
+
+# (PTI)Pivotal Tuning for Latent-based Editing of Real Images
+
+## Motivation
+
++ 在对域外的面部（模型训练过程中从未见过的人脸）进行反演和编辑的时候，仍然具有挑战性
+
+## Contribution
+
++ 提出一种调整生成器权重的方法(PTI)，能够将域外的图像忠实地映射到域内Latent Code
++ 对浓妆、头饰等也能很好的反演和编辑
+
+## Model
+
++ 分两步：invert和tune
++ 首先找到图像的一个初始反演Latent Code（Wp：pivot code）
+  + 使用基于StyleGAN直接优化的方式找到
+  + ![image-20221222104319288](GAN_inversion.assets/image-20221222104319288.png)
++ 找到Wp后，基于它对生成器参数进行优化
+  + ![image-20221222104423154](GAN_inversion.assets/image-20221222104423154.png)
+  + ![image-20221222104549618](GAN_inversion.assets/image-20221222104549618.png)
+  + ps：不是在大量图形上训练生成器，而是特定于目标图像进行生成器微调
++ **Locality Regularization**：解决ripple效应——使用非局部LC生成的图像质量会被破坏，引入LR目的将PTI变化限制在隐空间的局部区域
+  + 随机sample一个z，StyleGAN中8层全连接层计算Wz，与Wp计算Wr，用Wr输入微调前后的生成器得到${x_r}$和$x_r^*$，计算两者的损失。
+  + ![image-20221222110106859](GAN_inversion.assets/image-20221222110106859.png)
+
++ 最终生成器的优化定义为：
+  + ![image-20221222110934663](GAN_inversion.assets/image-20221222110934663.png)
+
+## Question
+
++ 什么是隐空间的局部区域，非局部LC生成？
+
