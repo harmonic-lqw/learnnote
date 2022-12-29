@@ -169,7 +169,7 @@
   # 训练church
   python scripts/train.py \
   --dataset_type=church_encode \
-  --exp_dir=/home/upc/Mydisk/UBT/pSp_church_00con/experiment \
+  --exp_dir=/home/upc/Mydisk/UBT/pSp_test/pSp_4/experiment \
   --workers=8 \
   --batch_size=2 \
   --test_batch_size=2 \
@@ -187,7 +187,7 @@
   --use_con \
   --con_lambda=0.0 \
   
-  nohup >> /home/upc/Mydisk/UBT/pSp_church_00con/church_train.log 2>&1 &
+  nohup >> /home/upc/Mydisk/UBT/pSp_test/pSp_4/church_train.log 2>&1 &
   
           
   ```
@@ -332,3 +332,23 @@
 
 + 什么是隐空间的局部区域，非局部LC生成？
 
+# (PadInv)High-fidelity GAN Inversion with Padding Space
+
+## Motivation
+
++ 现有的方法对空间细节恢复不足（即图像中有手、帽子等分布外的信息）
++ 零填充带来了感应偏差
+
+## Contribution
+
++ 提出一个P空间作为W+空间的补充，能够更好的恢复图像的空间信息，特别是对分布外的对象
++ 设计了一个Encoder，不仅能生成W+，同时还能生成P
++ 验证了P空间能够更好的控制图像的人脸姿态、形状和背景等结构信息；W+空间控制图像的人脸身份、口红、色彩等风格信息
+  + 不需要先验知识就可以实现各自编辑，而不影响其他的属性
+
+## Model
+
++ ![image-20221229164723311](GAN_inversion.assets/image-20221229164723311.png)
++ P的生成：选择一个最大的分辨率（实验证明32*32最好），在FPN对应的大小（512\*32\*32）进行1\*1卷积后进行上采样到34\*34大小，因此这里就最大对32分辨率的特征图使用可学习的padding
++ 每个分辨率有两个卷积层，只有一个卷积层（后一个）使用P空间的padding，其他层的padding保持不动
++ P0标志着StyleGAN中的常数输入（视为0\*0的张量的padding）
