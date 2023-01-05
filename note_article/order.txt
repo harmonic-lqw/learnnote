@@ -1,5 +1,4 @@
-
 cd D:\note_file
 git add note_article/*
-git commit -m "PadInv"
+git commit -m "SAM"
 git push origin master

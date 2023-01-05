@@ -154,8 +154,8 @@
           "梯度反传"
           "优化"
   python scripts/inference.py \
-  --exp_dir=/home/upc/Mydisk/UBT/my_pSp_test/experiment/church_con_7layer \
-  --checkpoint_path=/home/upc/Mydisk/UBT/pSp_church_7layer/experiment/checkpoints/best_model.pt \
+  --exp_dir=/home/upc/Mydisk/UBT/pSp_test_exp/pSp_5 \
+  --checkpoint_path=/home/upc/Mydisk/UBT/pSp_test/pSp_5/experiment/checkpoints/best_model.pt \
   --data_path=/home/upc/Mydisk/UBT/dataset/LSUN_church/church_outdoor_val \
   --test_batch_size=8 \
   --test_workers=4 \
@@ -163,13 +163,24 @@
   
   python scripts/calc_losses_on_images.py \
   --mode lpips \
-  --data_path=/home/upc/Mydisk/UBT/my_pSp_test/experiment/church_con_7layer/inference_results \
+  --data_path=/home/upc/Mydisk/UBT/pSp_test_exp/pSp_5/inference_results \
   --gt_path=/home/upc/Mydisk/UBT/dataset/LSUN_church/church_outdoor_val \
   
   # 训练church
+  1无con
+  2con系数为0
+  3关闭不相关网络的梯度
+  4训练F时加了.detach() con系数为0——>pSp正常用loss优化
+  5con系数为0.01
+  6con系数为0.05
+  7只用con损失，系数为1——>根本没有优化到Encoder
+  8训练F时取消.detach()，F和pSp全部用一次梯度反传的con来优化，因此层数设置较多，但是net的参数梯度设置为False（代码为什么还可以跑起来）
+  9训练F时取消.detach()，F和pSp全部用一次梯度反传的con来优化，因此层数设置较多，net的参数梯度设置为True
+  10调整层数，用上采样后的特征图进行损失计算
+  
   python scripts/train.py \
   --dataset_type=church_encode \
-  --exp_dir=/home/upc/Mydisk/UBT/pSp_test/pSp_4/experiment \
+  --exp_dir=/home/upc/Mydisk/UBT/pSp_test/pSp_9/experiment \
   --workers=8 \
   --batch_size=2 \
   --test_batch_size=2 \
@@ -185,10 +196,10 @@
   --max_steps=100000 \
   --optim_name=adam \
   --use_con \
-  --con_lambda=0.0 \
   
-  nohup >> /home/upc/Mydisk/UBT/pSp_test/pSp_4/church_train.log 2>&1 &
+  --con_lambda=1 \
   
+  nohup >> /home/upc/Mydisk/UBT/pSp_test/pSp_9/church_train.log 2>&1 &
           
   ```
   
@@ -215,7 +226,7 @@
 + 作者通过Restyle方式减小了对Encoder的复杂度的要求，所以对PSP和E4E中使用的FPN结构进行简化，取得了近似的结果
 + ![image-20221109105852170](GAN_inversion.assets/image-20221109105852170.png)
 
-# Interpreting the Latent Space of GANs for Semantic Face Editing
+# (InterFace GAN)Interpreting the Latent Space of GANs for Semantic Face Editing
 
 ## Contribution
 
@@ -237,6 +248,20 @@
   + $$\lambda$$：度量语义随距离改变的速度
 + 有了这个新方向，沿着新方向移动z，就可以改变属性1而对属性2没有影响。（论文中称作conditional manipulation操作）
 + 同时，如果有多个属性需要条件化，我们只需减去原始方向到由所有条件化方向构成的平面上的投影。（如果有多个属性，就让需要修改的那个属性对应的单位法向量，依次减去其在其他所有属性的单位法向量上的投影，得到的新方向就是解耦了其他属性的修改方向，即修改这个属性，对其他属性没有影响。）
+
+# (GAN Space)GANSpace: Discovering Interpretable GAN Controls
+
+## 图像编辑
+
++ ![image-20230102181003482](GAN_inversion.assets/image-20230102181003482.png)
+
+## Model
+
++ 通过在GAN的隐空间中应用PCA，可以找到重要的编辑方向
++ PCA编辑方向可以进行分层分解控制
+  + 给定一个潜在向量w的图像，逐层编辑需要只修改w个输入到一定范围的层，而保持其他层的输入不变
+  + E(v1, 0-3)表示仅在前四层沿分量v1移动
++ 方法发现：几何结构和视点的大规模变化仅限于前20个主成分（v0-v20）；前100个主成分足以描述整体图像外观；剩下的412个维度控制着外观上细微但可察觉的变化
 
 # (S-Space)StyleSpace Analysis: Disentangled Controls for StyleGAN Image Generation
 
@@ -266,7 +291,6 @@
 ## Question
 
 + DCI计算
-+ 梯度图的计算
 
 # (HyperStyle)StyleGAN Inversion with HyperNetworks for Real Image Editing
 
@@ -352,3 +376,66 @@
 + P的生成：选择一个最大的分辨率（实验证明32*32最好），在FPN对应的大小（512\*32\*32）进行1\*1卷积后进行上采样到34\*34大小，因此这里就最大对32分辨率的特征图使用可学习的padding
 + 每个分辨率有两个卷积层，只有一个卷积层（后一个）使用P空间的padding，其他层的padding保持不动
 + P0标志着StyleGAN中的常数输入（视为0\*0的张量的padding）
+
+# (HFGI)High-Fidelity GAN Inversion for Image Attribute Editing
+
+## Motivation
+
++ 因为Latent Code的维度低的原因，所以重建的图像不可避免的会丢失一些信息，丢失的主要是高频细节信息
++ 对有极端视点和遮挡的图像的重建效果很差
+
+## Contribution
+
++ 为了实现高保真度反演，提出了一个失真咨询分支来传递具体图像的高频信息
++ 为了高保真编辑，设计了一个自适应失真对齐模块（ADA）
+  + ADA的训练：
+    + GT：$\Delta  = X - {\widehat X_O}$——真实图像-粗重建图像
+    + 对GT进行随机透视变换得到$\widetilde \Delta $
+    + 经过ADA模块得到：$\widehat \Delta  = ADA({\widehat X_O},\widetilde \Delta)$
+    + 计算对齐损失(alignment loss)：$||\widehat \Delta  - \Delta |{|_1}$
+
+## Model
+
++ ![image-20230101184843205](GAN_inversion.assets/image-20230101184843205.png)
++ 总损失：
+  + ![image-20230101191655293](GAN_inversion.assets/image-20230101191655293.png)
+  + ![image-20230101191421014](GAN_inversion.assets/image-20230101191421014.png)
+  + ![image-20230101191434611](GAN_inversion.assets/image-20230101191434611.png)
++ 训练过程中只包含反演图像，不需要编辑方向；训练之后，模型可以推广到使用不同的编辑方法进行属性编辑
+
+# E2Style: Improve the Efficiency and Effectiveness of StyleGAN Inversion
+
+# Spatially-Adaptive Multilayer Selection for GAN Inversion and Editing
+
+## Motivation
+
++ 现有方法更多的针对有规则的图像，比如人脸和动物脸，对于复杂图像，比如汽车、马，以为视觉特征更多样、背景更复杂，而且经常会遇到遮挡问题，使得这些图像的反演更加有挑战
++ 图像的不同区域的反演难度不同，因为有些背景信息在预训练的数据集中出现的频率低，导致不容易反演
+
+## Contribution
+
++ 训练一个网络能够对于输入图像上不同区域应该用哪个隐空间进行预测
++ 通过使用多个隐空间，对输入图像的每个不同区域进行反演
+  + 对需要编辑的部分使用W+空间
+  + 对背景等信息使用生成器后面层进行反演——能够能精确的重建图像但降低编辑能力
+
+## Model
+
++ 训练一个预测网络来推断输入图像的`Invertibility map`：指示每个区域要使用的隐空间
++ ![image-20230105202248564](GAN_inversion.assets/image-20230105202248564.png)
+  + 左侧：使用不同隐空间的得到的反演图像对，通过`LPIPS`得到`LPIPS spatial error map`，然后训练一个网路——给定输入图像能够预测出对应的`LPIPS spatial error map`，不同的隐空间对应不同的网络
+  + 右侧：得到最终`Invertibility map`的过程，给定输入图像，通过左侧预训练的网络得到对应不同隐空间的`LPIPS spatial error map`，之后通过预训练的图像分割网络做微调，最后对C通过设定的阈值τ来组合他们得到`Invertibility map`
++ ![image-20230105203017153](GAN_inversion.assets/image-20230105203017153.png)
+  + 需要预测的是$\Delta {f_i}$，`Invertibility map`使用双线性下采样得到对应特征图大小的二进制掩码图：来指示该层中应该反转的区域
+  + ![image-20230105204211381](GAN_inversion.assets/image-20230105204211381.png)
+  + ![image-20230105204218577](GAN_inversion.assets/image-20230105204218577.png)
+  + 基于优化的方法，直接优化每张图像的隐空间集合`Φ = {W +, F4, F6, F8, F10}`
+  + 基于编码器的方法，则为每个隐空间训练一个单独的编码器
++ 使用更强大的隐空间层F4和F6重建困难区域，容易生成的区域使用更可编辑的W+
+
++ 根据`Invertibility map`对图像进行编辑：在W +空间中反转的区域被整个编码w+ δw+调制，而在中间特征空间{F4, F6, F8, F10}中反转的区域仅在该特征空间层之后的层中被w+ δw+调制
++ 实验结果能够对一般都希望编辑的简单区域能够进行很好编辑，对于一般不期待编辑的背景等信息则有更好的重建，比如因为预训练的网络关注的是车，所以对车本身重建更简单，对背景重建较难，使用这种方法实现对编辑和重建的权衡。
+
+## Question
+
++ 训练`Invertibility map`的时候，直接使用单层F10来生成反演图？
