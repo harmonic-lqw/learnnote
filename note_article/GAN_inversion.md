@@ -154,33 +154,56 @@
           "梯度反传"
           "优化"
   python scripts/inference.py \
-  --exp_dir=/home/upc/Mydisk/UBT/pSp_test_exp/pSp_5 \
-  --checkpoint_path=/home/upc/Mydisk/UBT/pSp_test/pSp_5/experiment/checkpoints/best_model.pt \
-  --data_path=/home/upc/Mydisk/UBT/dataset/LSUN_church/church_outdoor_val \
+  --exp_dir=/home/upc/Mydisk/UBT/pSp_test_exp/pSp_2_face \
+  --checkpoint_path=/home/upc/Mydisk/UBT/Auxiliary_models/pSp/pretrained_checkpoint/psp_ffhq_encode.pt \
+  --data_path=/home/upc/Mydisk/UBT/dataset/CelebAHQ/test \
   --test_batch_size=8 \
   --test_workers=4 \
   --couple_outputs
   
+  --data_path=/home/upc/Mydisk/UBT/dataset/CelebAHQ/test/ 
+  
+  
   python scripts/calc_losses_on_images.py \
   --mode lpips \
-  --data_path=/home/upc/Mydisk/UBT/pSp_test_exp/pSp_5/inference_results \
-  --gt_path=/home/upc/Mydisk/UBT/dataset/LSUN_church/church_outdoor_val \
+  --data_path=/home/upc/Mydisk/UBT/pSp_test_exp/pSp_1_face/inference_results \
+  --gt_path=/home/upc/Mydisk/UBT/dataset/CelebAHQ/test/ \
+  
+  --gt_path=/home/upc/Mydisk/UBT/dataset/LSUN_church/church_outdoor_val
+  
+  python scripts/calc_id_loss_parallel.py \
+  --data_path=/home/upc/Mydisk/UBT/pSp_test_exp/pSp_2_face/inference_results \
+  --gt_path=/home/upc/Mydisk/UBT/dataset/CelebAHQ/test/  \
   
   # 训练church
-  1无con
+  HFGI的判别损失和ChunkGAN的平局代码惩罚项加入会不会提高效果？
+  
+  1无con————>L2优化到最低0.094
   2con系数为0
   3关闭不相关网络的梯度
   4训练F时加了.detach() con系数为0——>pSp正常用loss优化
   5con系数为0.01
   6con系数为0.05
   7只用con损失，系数为1——>根本没有优化到Encoder
-  8训练F时取消.detach()，F和pSp全部用一次梯度反传的con来优化，因此层数设置较多，但是net的参数梯度设置为False（代码为什么还可以跑起来）
-  9训练F时取消.detach()，F和pSp全部用一次梯度反传的con来优化，因此层数设置较多，net的参数梯度设置为True
-  10调整层数，用上采样后的特征图进行损失计算
+  8训练F时取消.detach()，F和pSp全部用一次梯度反传的con来优化，因此层数设置较多，但是net的参数梯度设置为False————>优化不到pSp
+  9训练F时取消.detach()，F和pSp全部用一次梯度反传的con来优化，因此层数设置较多，net的参数梯度设置为True————>L2损失爆炸，（为什么生成图变得那么奇怪）
+  10训练F时取消.detach()，F和pSp全部用一次梯度反传的con来优化，只使用原图的一层
+  11计算一次损失反传后，F和pSp一起优化，con系数0.1，层数[0, 3, 20, 23]————>L2优化到最低0.094
+  12计算一次损失反传后，F和pSp一起优化，con系数0.5，层数[0, 3, 20, 23]————>L2优化到最低0.085
+  13计算一次损失反传后，F和pSp一起优化，con系数0.8，层数[0, 3, 20, 23]————>L2优化到最低0.087
+  14计算一次损失反传后，F和pSp一起优化，con系数1，层数[0, 3, 20, 23]————>L2优化到最低0.086
+  15先优化F，后优化pSp，这样F的优化损失就不会随着con变化？同时优化pSp时相当于con系数为1？————>L2优化到最低0.099
+  16只用lpips和con进行优化，系数都为1————>最低优化到0.096，l2仍然能正常优化
+  17调整层数，不使用16*16的特征图，只是用到输入的1/8（E2style）————>L2优化到最低0.084，但是相比12，lpips更高
+  18计算一次损失反传后，F和pSp一起优化，con系数1，层数[0, 2, 3, 6, 7, 20, 21, 23]————>L2优化到最低0.085，但是相比12，lpips更高
+  19加入moco损失，moco系数0.5，con系数0.5————>L2优化到最低0.093，Lpips：0.415
+  20加入moco损失，不用con————>L2优化到最低0.118，Lpips：0.389
+  21用上采样后的特征图进行损失计算
+  
   
   python scripts/train.py \
-  --dataset_type=church_encode \
-  --exp_dir=/home/upc/Mydisk/UBT/pSp_test/pSp_9/experiment \
+  --dataset_type=ffhq_encode \
+  --exp_dir=/home/upc/Mydisk/UBT/pSp_test/face_1/experiment2 \
   --workers=8 \
   --batch_size=2 \
   --test_batch_size=2 \
@@ -191,15 +214,20 @@
   --start_from_latent_avg \
   --lpips_lambda=0.8 \
   --l2_lambda=1 \
+  --id_lambda=0.1 \
   --output_size=256 \
-  --stylegan_weights=/home/upc/Mydisk/UBT/Auxiliary_models/pSp/pretrained_models/stylegan2-church-config-f.pt \
-  --max_steps=100000 \
+  --max_steps=150000 \
   --optim_name=adam \
   --use_con \
-  
   --con_lambda=1 \
+  --checkpoint_path=/home/upc/Mydisk/UBT/pSp_test/face_1/experiment/checkpoints/iteration_350000.pt \
   
-  nohup >> /home/upc/Mydisk/UBT/pSp_test/pSp_9/church_train.log 2>&1 &
+  
+  --dataset_type=church_encode \
+  --stylegan_weights=/home/upc/Mydisk/UBT/Auxiliary_models/pSp/pretrained_models/stylegan2-church-config-f.pt \
+  --moco_lambda=0.5 \
+  
+  nohup >> /home/upc/Mydisk/UBT/pSp_test/face_1/church_train2.log 2>&1 &
           
   ```
   
@@ -225,6 +253,64 @@
 + ![image-20221109105548115](GAN_inversion.assets/image-20221109105548115.png)
 + 作者通过Restyle方式减小了对Encoder的复杂度的要求，所以对PSP和E4E中使用的FPN结构进行简化，取得了近似的结果
 + ![image-20221109105852170](GAN_inversion.assets/image-20221109105852170.png)
+
+## Code
+
++ 前20000之前，都是用最后一层提取的w0并复制18份，即找到的是W空间，20000step之后开始慢慢优化delta，希望使w空间像w+空间优化，达到更好的优化效果（e4e）
++ restyle的迭代与上一条概念上无关，只是每个batch优化迭代5次进入下一个batch。
+
++ ```python
+  python scripts/train_restyle_e4e.py \
+  --dataset_type=church_encode \
+  --encoder_type=ResNetProgressiveBackboneEncoder \
+  --exp_dir=experiment/restyle_e4e_church_encode_con1 \
+  --workers=8 \
+  --batch_size=8 \
+  --test_batch_size=8 \
+  --test_workers=8 \
+  --start_from_latent_avg \
+  --lpips_lambda=0.8 \
+  --l2_lambda=1 \
+  --delta_norm_lambda 0.0002 \
+  --id_lambda 0 \
+  --moco_lambda 0.5 \
+  --use_w_pool \
+  --w_discriminator_lambda 0.1 \
+  --progressive_start 20000 \
+  --progressive_step_every 2000 \
+  --input_nc 6 \
+  --n_iters_per_batch=5 \
+  --output_size 256 \
+  --stylegan_weights=/HDDdata/LQW/Auxiliary_models/pSp/pretrained_models/stylegan2-church-config-f.pt \
+  --use_con \
+  --con_lambda=0.5 \
+  --max_steps 100000 
+  
+  nohup >> /HDDdata/LQW/restyle-encoder-main/experiment/restyle_e4e_church_encode_con1/church_train.log 2>&1 &
+  
+  python scripts/inference_iterative.py \
+  --exp_dir=/HDDdata/LQW/restyle-encoder-main/experiment/official \
+  --checkpoint_path=/HDDdata/LQW/Auxiliary_models/pSp/pretrained_checkpoint/restyle_e4e_church_encode.pt \
+  --data_path=/HDDdata/LQW/LSUN_church/church_outdoor_val \
+  --test_batch_size=4 \
+  --test_workers=4 \
+  --n_iters_per_batch=5
+  
+  python scripts/inference_iterative_save_coupled.py \
+  --exp_dir=/HDDdata/LQW/restyle-encoder-main/experiment/official_couple \
+  --checkpoint_path=/HDDdata/LQW/Auxiliary_models/pSp/pretrained_checkpoint/restyle_e4e_church_encode.pt \
+  --data_path=/HDDdata/LQW/LSUN_church/church_outdoor_val \
+  --test_batch_size=4 \
+  --test_workers=4 \
+  --n_iters_per_batch=5
+  
+  python scripts/calc_losses_on_images.py \
+  --mode l2 \
+  --output_path=/HDDdata/LQW/restyle-encoder-main/experiment/official/inference_results \
+  --gt_path=/HDDdata/LQW/LSUN_church/church_outdoor_val
+  ```
+  
+  
 
 # (InterFace GAN)Interpreting the Latent Space of GANs for Semantic Face Editing
 
@@ -403,7 +489,41 @@
   + ![image-20230101191434611](GAN_inversion.assets/image-20230101191434611.png)
 + 训练过程中只包含反演图像，不需要编辑方向；训练之后，模型可以推广到使用不同的编辑方法进行属性编辑
 
-# E2Style: Improve the Efficiency and Effectiveness of StyleGAN Inversion
+## Code
+
++ 判别损失是如何加入的
+
+# (InvertFill)High-Fidelity Image Inpainting with GAN Inversion
+
+## Motivation
+
++ 图像修复问题中，对于退化严重的图像，即缺失部分很多的图像修复存在挑战
++ 基于GAN反演的图像修复存在“gapping”问题：由于GAN模型并不直接访问输入图像像素，所以缺失修复问题中的硬约束（没有被mask掉的像素应在重建时得到一致的保留）没有得到解决，最终导致颜色差异和语义不一致性
++ 训练的模型对于域外图像的修复存在问题
+
+## Contribution
+
++ 引入一个新的F&W+隐空间，解决“gapping”问题，弥补了GAN反演用于图像修复时无法直接观察到未掩码像素的问题
++ 提出一个多尺度的预调制网络，更加充分的利用多尺度的输入信息
++ 使用软更新平均隐向量来修正输入到生成器中的隐向量（之所以这么做是因为，如果不修正，则可能出现：修复的图像中，远离掩码边缘的像素出现模糊的现象），解决使用静态平均向量优化带来的失去生成多样性的问题
++ 提出的模型，用到生成器未见过的域时也能有很好的效果，只需要单独训练对应的编码器即可，而不需要再去训练StyleGAN生成器
+
+## Model
+
++ ![image-20230213212448538](GAN_inversion.assets/image-20230213212448538.png)
++ Encoder投喂的也是退化图像，生成的Oe是通过3个RGB_heads得到的重建出来的RGB图像
+
+## Loss
+
++ ![image-20230213212728040](GAN_inversion.assets/image-20230213212728040.png)
++ ![image-20230213212852887](GAN_inversion.assets/image-20230213212852887.png)
+  + ![image-20230213212903592](GAN_inversion.assets/image-20230213212903592.png)
+  + 计算I与Og之间的损失（未掩码、掩码像素损失、感知损失、风格损失、总变异损失）
+  + ![image-20230213212916514](GAN_inversion.assets/image-20230213212916514.png)
+  + 计算I与Oe之间的损失
+  + ![image-20230213213003700](GAN_inversion.assets/image-20230213213003700.png)
+    + ![image-20230213213941243](GAN_inversion.assets/image-20230213213941243.png)
+  + 提高输出图像的质量和多样性
 
 # Spatially-Adaptive Multilayer Selection for GAN Inversion and Editing
 
@@ -424,7 +544,7 @@
 + 训练一个预测网络来推断输入图像的`Invertibility map`：指示每个区域要使用的隐空间
 + ![image-20230105202248564](GAN_inversion.assets/image-20230105202248564.png)
   + 左侧：使用不同隐空间的得到的反演图像对，通过`LPIPS`得到`LPIPS spatial error map`，然后训练一个网路——给定输入图像能够预测出对应的`LPIPS spatial error map`，不同的隐空间对应不同的网络
-  + 右侧：得到最终`Invertibility map`的过程，给定输入图像，通过左侧预训练的网络得到对应不同隐空间的`LPIPS spatial error map`，之后通过预训练的图像分割网络做微调，最后对C通过设定的阈值τ来组合他们得到`Invertibility map`
+  + 右侧：得到最终`Invertibility map`的过程，给定输入图像，通过左侧预训练的网络得到对应不同隐空间的`LPIPS s·patial error map`，之后通过预训练的图像分割网络做微调，最后对C通过设定的阈值τ来组合他们得到`Invertibility map`
 + ![image-20230105203017153](GAN_inversion.assets/image-20230105203017153.png)
   + 需要预测的是$\Delta {f_i}$，`Invertibility map`使用双线性下采样得到对应特征图大小的二进制掩码图：来指示该层中应该反转的区域
   + ![image-20230105204211381](GAN_inversion.assets/image-20230105204211381.png)
@@ -433,9 +553,98 @@
   + 基于编码器的方法，则为每个隐空间训练一个单独的编码器
 + 使用更强大的隐空间层F4和F6重建困难区域，容易生成的区域使用更可编辑的W+
 
-+ 根据`Invertibility map`对图像进行编辑：在W +空间中反转的区域被整个编码w+ δw+调制，而在中间特征空间{F4, F6, F8, F10}中反转的区域仅在该特征空间层之后的层中被w+ δw+调制
++ 根据`Invertibility map`对图像进行编辑：在W+空间中反转的区域被整个编码w + δw+调制，而在中间特征空间{F4, F6, F8, F10}中反转的区域仅在该特征空间层之后的层中被w + δw+调制
 + 实验结果能够对一般都希望编辑的简单区域能够进行很好编辑，对于一般不期待编辑的背景等信息则有更好的重建，比如因为预训练的网络关注的是车，所以对车本身重建更简单，对背景重建较难，使用这种方法实现对编辑和重建的权衡。
 
 ## Question
 
 + 训练`Invertibility map`的时候，直接使用单层F10来生成反演图？
+
+# ChunkyGAN:：Real Image Inversion via Segments
+
+## Motivation
+
++ 之前的方法使用一个LT代表整张图像，因为维度差距过大，LT的表现力会严重不足
++ 通过重建损失进行优化得到的整张图像的最小值并不一定在所有图像的区域都是最小值
+
+## Contribution
+
++ 提出一个基于GAN的图像重建和编辑技术，将输入图像细分为一组区域，不同的区域用不用的LT去反演
+  + 由一个低得多的维度目标去寻找反演代码，使优化更容易
+
++ 对人脸编辑强度的一种度量方式
+  + 为每个语义方向使用一个分类器，对于每个空间和方法，用分类器的response衡量和调整编辑强度
+
+## Model
+
++ ![image-20230112194932092](GAN_inversion.assets/image-20230112194932092.png)
++ 输出图像是n张图像的加权组合
+  + 权重可以自己手动指定，也可以用一个segment latent code XS通过一个生成器，生成每个区域的mask
+  + 生成的不同图像和mask的个数对应，也就是有多少个mask，就有多少个XL（XL可以位于W、W+、S不同空间，其中W+空间表现最好），就有多少张生成的图像，最终加权合并成一张最终输出
++ 损失函数：
+  + ![image-20230112200231916](GAN_inversion.assets/image-20230112200231916.png)
+  + 第一项是LPIPS，第二项是惩罚LT的离散程度的正则项，加入后对最终结果的重建效果略有降低，但是编辑效果有更明显的提升
++ 掩码图像和生成图像在训练过程中均被不断优化
+
+## Code
+
++ 惩罚离散损失如何加入（平均代码如何获得）：论文中说有助于避免产生真实图像的太远的潜在代码
+
+## Question
+
++ 论文中红色部分
+
+# E2Style: Improve the Efficiency and Effectiveness of StyleGAN Inversion
+
+## Motivation
+
++  GAN反演问题对效率和有效性都有很高要求
++ 现有的方法，基于学习的有效性不好、基于优化的效率不高，而一般的混合方法也会因为优化操作的引入而导致效率降低
++ 基于学习的前馈型方法网络结构设计的并不合理
+
+## Contribution
+
++ 提出了一个新的用于GAN反演的网络架构
++ 研究了网络深度、隐向量预测头的设计对最终效果的影响
+
+## Model
+
++ ![image-20230116155345652](GAN_inversion.assets/image-20230116155345652.png)
+  + 主网络只降低到输入分辨率的1/8
+  + 1/2、1/4、1/8都是用一个高效映射头，由一个全局池化和一个全连接层组成
+  + 同时引入多阶段微调，训练完一个阶段的网络后，固定住，然后开始训练下一个阶段的网络，每个阶段的网络是独立的、单独训练的
+    + ![image-20230116155707954](GAN_inversion.assets/image-20230116155707954.png)
+    + ![image-20230116160533410](GAN_inversion.assets/image-20230116160533410.png)
+    + 后续阶段的学习目标是预测残差
+    + 虽然加入了多阶段优化，但是推理的时候仍然是只需要向前传第一次就可以得到最终结果，所以这种方法可以在提高反演性能的同时不会带来太显著的时间增加。
+
+# FakeCLR：Exploring Contrastive Learning for Solving Latent Discontinuity in Data-Efficient GANsem 
+
+# IntereStyle: Encoding an Interest Region for Robust StyleGAN Inversion
+
+## Motivation
+
++ 先前基于Encoder的方法都是将整幅图进行损失计算，网络同时关注感兴趣区域和不感兴趣区域
++ 由于生成器的固有限制，图像包含无法生成的区域
++ 不感兴趣的区域与感兴趣区域的重叠（面部遮挡）会破坏感兴趣区域原有的特征
+
+## Contribution
+
++ 在Restyle的基础上
+  + InD（感兴趣解耦）模块：mask掉不感兴趣区域，避免非感兴趣区域对感兴趣区域结果的影响
+  + UnF（不感兴趣过滤）模块：对不感兴趣区域进行过滤，避免了模型对不感兴趣区域的冗余关注（特别是在迭代早期）
+
+## Model
+
++ ![image-20230222132851981](GAN_inversion.assets/image-20230222132851981.png)
++ 第一阶段，通过降低对原图处理的低通滤波器的半径，使与上一阶段的重建图像配对的原图中的高频信息（背景、不感兴趣区域）逐渐的增加，有利于迭代早期网络不会过多的关注不感兴趣区域
++ 第二阶段，与第一阶段的本质思想一致，对原图屏蔽掉不感兴趣区域，和原图本身一起送入Encoder，以同样的方式训练Encoder
++ UnF模块理解：让网络在迭代早期更多的关注感兴趣区域，因此把不感兴趣区域通过滤波器模糊掉，但是又不能迭代过程中一致模糊，这样会造成两区域纹理不一致，所以要逐渐的降低滤波器半径，让网络看到更多的不感兴趣区域的信息
++ InD模块理解：文中叙述，Encoder编码得到的delta表示的是配对图像的差异，理想情况下，delta带有的仅仅是不感兴趣区域的信息，w和w+delta得到的图像的感兴趣区域应该是一致的，基于这一点，对感兴趣区域进行损失计算和网络优化的时候，优化的目标就是：delta_b对重建图像的感兴趣区域没有影响，因此就可以理解成网络对不感兴趣区域的编码能力弱化
+
+## Loss
+
++ y^表示InD的重建图像，y^N表示UnF的重建图像
+
++ ![image-20230222133857908](GAN_inversion.assets/image-20230222133857908.png)
++ ![image-20230222133911102](GAN_inversion.assets/image-20230222133911102.png)
