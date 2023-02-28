@@ -260,10 +260,15 @@
 + restyle的迭代与上一条概念上无关，只是每个batch优化迭代5次进入下一个batch。
 
 + ```python
+  # CUDA 11.3
+  pip install torch==1.12.1+cu113 torchvision==0.13.1+cu113 torchaudio==0.12.1 --extra-index-url https://download.pytorch.org/whl/cu113
+  
+  restyle_e4e_church_encode_con1:con系数0.5
+  
   python scripts/train_restyle_e4e.py \
-  --dataset_type=church_encode \
+  --dataset_type=horse_encode \
   --encoder_type=ResNetProgressiveBackboneEncoder \
-  --exp_dir=experiment/restyle_e4e_church_encode_con1 \
+  --exp_dir=experiment/restyle_e4e_horse_encode \
   --workers=8 \
   --batch_size=8 \
   --test_batch_size=8 \
@@ -281,24 +286,25 @@
   --input_nc 6 \
   --n_iters_per_batch=5 \
   --output_size 256 \
-  --stylegan_weights=/HDDdata/LQW/Auxiliary_models/pSp/pretrained_models/stylegan2-church-config-f.pt \
-  --use_con \
-  --con_lambda=0.5 \
-  --max_steps 100000 
+  --stylegan_weights=/HDDdata/LQW/Auxiliary_models/pSp/pretrained_models/stylegan2-horse-config-f.pt \
+  --max_steps 50000 \
   
-  nohup >> /HDDdata/LQW/restyle-encoder-main/experiment/restyle_e4e_church_encode_con1/church_train.log 2>&1 &
+  --use_con \
+  --con_lambda=1 
+  
+  nohup >> /HDDdata/LQW/restyle-encoder-main/experiment/restyle_e4e_horse_encode/train.log 2>&1 &
   
   python scripts/inference_iterative.py \
-  --exp_dir=/HDDdata/LQW/restyle-encoder-main/experiment/official \
-  --checkpoint_path=/HDDdata/LQW/Auxiliary_models/pSp/pretrained_checkpoint/restyle_e4e_church_encode.pt \
-  --data_path=/HDDdata/LQW/LSUN_church/church_outdoor_val \
+  --exp_dir=/HDDdata/LQW/restyle-encoder-main/experiment/restyle_e4e_horse_encode/inference \
+  --checkpoint_path=/HDDdata/LQW/restyle-encoder-main/experiment/restyle_e4e_horse_encode/checkpoints/best_model.pt \
+  --data_path=/HDDdata/LQW/Restyle_Horse/test \
   --test_batch_size=4 \
   --test_workers=4 \
   --n_iters_per_batch=5
   
   python scripts/inference_iterative_save_coupled.py \
-  --exp_dir=/HDDdata/LQW/restyle-encoder-main/experiment/official_couple \
-  --checkpoint_path=/HDDdata/LQW/Auxiliary_models/pSp/pretrained_checkpoint/restyle_e4e_church_encode.pt \
+  --exp_dir=/HDDdata/LQW/restyle-encoder-main/experiment/restyle_e4e_church_encode_con1/inference/couple \
+  --checkpoint_path=/HDDdata/LQW/restyle-encoder-main/experiment/restyle_e4e_church_encode_con1/checkpoints/best_model.pt \
   --data_path=/HDDdata/LQW/LSUN_church/church_outdoor_val \
   --test_batch_size=4 \
   --test_workers=4 \
@@ -306,7 +312,7 @@
   
   python scripts/calc_losses_on_images.py \
   --mode l2 \
-  --output_path=/HDDdata/LQW/restyle-encoder-main/experiment/official/inference_results \
+  --output_path=/HDDdata/LQW/restyle-encoder-main/experiment/restyle_e4e_church_encode_con1/inference/inference_results \
   --gt_path=/HDDdata/LQW/LSUN_church/church_outdoor_val
   ```
   
@@ -648,3 +654,26 @@
 
 + ![image-20230222133857908](GAN_inversion.assets/image-20230222133857908.png)
 + ![image-20230222133911102](GAN_inversion.assets/image-20230222133911102.png)
+
+# Unsupervised Domain Adaptation GAN Inversion for Image Editing
+
+## Motivation
+
++ 对LQ图像（mask、雨雾、低分辨率）的图像的反演和编辑效果很差
++ 现实生活中大部分都是LQ图像，目前反演方法在HQ上训练的难以应用和推广
++ 想找LQ图像对应的HQ图像训练编码器，但难以找到LQ图像配对的HQ图像进行监督训练
+
+## Contribution
+
++ 结合域自适应和GAN反演，实现训练的Encoder对HQ和LQ图像都能很好的编辑和反演
++ 对LQ图像的训练是无监督的，因此不需要为LQ图像配对HQ图像
+
+## Model
+
++ 源域为HQ图像、目标域为LQ图像（HQ图像经过雨层、随机mask、下采样）
+  + 训练时：HQ和LQ分别为训练集的50%
+
++ ![image-20230228162220141](GAN_inversion.assets/image-20230228162220141.png)
+  + **训练目标包括源域的一般的GAN反演方法的监督、域自适应拉近HQ和LQ编码后的隐空间（损失函数为两空间的距离）**
++ ![image-20230228162253348](GAN_inversion.assets/image-20230228162253348.png)
+  + 左边为HFGI和E2style的训练方式，右边为本文提出的训练方式
