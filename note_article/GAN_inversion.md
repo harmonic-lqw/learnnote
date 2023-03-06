@@ -268,7 +268,7 @@
   python scripts/train_restyle_e4e.py \
   --dataset_type=horse_encode \
   --encoder_type=ResNetProgressiveBackboneEncoder \
-  --exp_dir=experiment/restyle_e4e_horse_encode \
+  --exp_dir=experiment/restyle_e4e_horse_encode_con2 \
   --workers=8 \
   --batch_size=8 \
   --test_batch_size=8 \
@@ -286,17 +286,17 @@
   --input_nc 6 \
   --n_iters_per_batch=5 \
   --output_size 256 \
+  --save_interval 20000 \
   --stylegan_weights=/HDDdata/LQW/Auxiliary_models/pSp/pretrained_models/stylegan2-horse-config-f.pt \
-  --max_steps 50000 \
-  
+  --max_steps 100000 \
   --use_con \
-  --con_lambda=1 
+  --con_lambda=1
   
-  nohup >> /HDDdata/LQW/restyle-encoder-main/experiment/restyle_e4e_horse_encode/train.log 2>&1 &
+  nohup >> /HDDdata/LQW/restyle-encoder-main/experiment/restyle_e4e_horse_encode_con2/train.log 2>&1 &
   
   python scripts/inference_iterative.py \
-  --exp_dir=/HDDdata/LQW/restyle-encoder-main/experiment/restyle_e4e_horse_encode/inference \
-  --checkpoint_path=/HDDdata/LQW/restyle-encoder-main/experiment/restyle_e4e_horse_encode/checkpoints/best_model.pt \
+  --exp_dir=/HDDdata/LQW/restyle-encoder-main/experiment/restyle_e4e_horse_encode_con/inference \
+  --checkpoint_path=/HDDdata/LQW/restyle-encoder-main/experiment/restyle_e4e_horse_encode_con/checkpoints/best_model.pt \
   --data_path=/HDDdata/LQW/Restyle_Horse/test \
   --test_batch_size=4 \
   --test_workers=4 \
@@ -311,9 +311,16 @@
   --n_iters_per_batch=5
   
   python scripts/calc_losses_on_images.py \
-  --mode l2 \
-  --output_path=/HDDdata/LQW/restyle-encoder-main/experiment/restyle_e4e_church_encode_con1/inference/inference_results \
-  --gt_path=/HDDdata/LQW/LSUN_church/church_outdoor_val
+  --mode lpips \
+  --output_path=/HDDdata/LQW/restyle-encoder-main/experiment/restyle_e4e_horse_encode/inference/inference_results \
+  --gt_path=/HDDdata/LQW/Restyle_Horse/test
+  
+  python -m pytorch_fid /HDDdata/LQW/Restyle_Horse/test_cv2_transform_256 /HDDdata/LQW/restyle-encoder-main/experiment/restyle_e4e_horse_encode/inference/inference_results/4 --device cuda:0
+  
+  python calculate_psnr_ssim.py \
+  --mode SSIM \
+  --data_path /HDDdata/LQW/restyle-encoder-main/experiment/restyle_e4e_horse_encode_con/inference/inference_results/4 \
+  --gt_path /HDDdata/LQW/Restyle_Horse/test 
   ```
   
   
@@ -624,8 +631,6 @@
     + 后续阶段的学习目标是预测残差
     + 虽然加入了多阶段优化，但是推理的时候仍然是只需要向前传第一次就可以得到最终结果，所以这种方法可以在提高反演性能的同时不会带来太显著的时间增加。
 
-# FakeCLR：Exploring Contrastive Learning for Solving Latent Discontinuity in Data-Efficient GANsem 
-
 # IntereStyle: Encoding an Interest Region for Robust StyleGAN Inversion
 
 ## Motivation
@@ -677,3 +682,36 @@
   + **训练目标包括源域的一般的GAN反演方法的监督、域自适应拉近HQ和LQ编码后的隐空间（损失函数为两空间的距离）**
 + ![image-20230228162253348](GAN_inversion.assets/image-20230228162253348.png)
   + 左边为HFGI和E2style的训练方式，右边为本文提出的训练方式
+
+# Style Transformer for Image Inversion and Editing
+
+## Contribution
+
++ 将Transformer引入到GAN Inversion中，transformer包括自注意力和交叉注意力模块，因此风格Latent Code可以逐步地从多尺度源图像中提取信息
++ 通过基于标签和基于参考两种方式获得更加多样、灵活、准确的编辑结果
+
+## Model
+
++ ![image-20230306170602606](GAN_inversion.assets/image-20230306170602606.png)
++ 除了A和G，全部参与训练（MLP、E、T）
++ 通过自注意力和交叉注意力来更新Wn
+  + 自注意力能够使各个w之间的关系更紧密，但不涉及任何图像特征
+  + 交叉注意力从输入图像的不同分辨率特征图中提取信息来更新Wn，随着特征图尺度越来越大，带给Wn的信息也越来越精细
+
+## Edit
+
+### 基于标签
+
++ 使用预训练好的分类器确定方向，根据目标标签计算损失，将梯度反向传播到方向代码，从而找到编辑方向
++ 对于每一个属性都有一个统一的方向
+
+### 基于参考
+
++ ![image-20230306171617759](GAN_inversion.assets/image-20230306171617759.png)
++ 损失
+  + ![image-20230306171659250](GAN_inversion.assets/image-20230306171659250.png)
+    + 确保被编辑属性与参考图像相似
+  + ![image-20230306172309280](GAN_inversion.assets/image-20230306172309280.png)
+    + 确保其他属性与源图像相似
+  + ![image-20230306172333811](GAN_inversion.assets/image-20230306172333811.png)
+    + 确保编辑过的图像不会变化太大
