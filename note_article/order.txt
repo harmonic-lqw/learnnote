@@ -1,4 +1,4 @@
 cd D:\note_file
 git add note_article/*
-git commit -m "Style_Transformer"
+git commit -m "Cycle Encoding"
 git push origin master

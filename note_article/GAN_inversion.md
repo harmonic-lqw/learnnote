@@ -154,22 +154,18 @@
           "梯度反传"
           "优化"
   python scripts/inference.py \
-  --exp_dir=/home/upc/Mydisk/UBT/pSp_test_exp/pSp_2_face \
-  --checkpoint_path=/home/upc/Mydisk/UBT/Auxiliary_models/pSp/pretrained_checkpoint/psp_ffhq_encode.pt \
-  --data_path=/home/upc/Mydisk/UBT/dataset/CelebAHQ/test \
+  --exp_dir=/HDDdata/LQW/pSp_test/20 \
+  --checkpoint_path=/HDDdata/LQW/pSp_test/best_model_20.pt \
+  --data_path=/HDDdata/LQW/LSUN_church/church_outdoor_val \
   --test_batch_size=8 \
   --test_workers=4 \
   --couple_outputs
   
-  --data_path=/home/upc/Mydisk/UBT/dataset/CelebAHQ/test/ 
-  
   
   python scripts/calc_losses_on_images.py \
   --mode lpips \
-  --data_path=/home/upc/Mydisk/UBT/pSp_test_exp/pSp_1_face/inference_results \
-  --gt_path=/home/upc/Mydisk/UBT/dataset/CelebAHQ/test/ \
-  
-  --gt_path=/home/upc/Mydisk/UBT/dataset/LSUN_church/church_outdoor_val
+  --data_path=/HDDdata/LQW/pSp_test/19/inference_results \
+  --gt_path=/HDDdata/LQW/LSUN_church/church_outdoor_val \
   
   python scripts/calc_id_loss_parallel.py \
   --data_path=/home/upc/Mydisk/UBT/pSp_test_exp/pSp_2_face/inference_results \
@@ -196,8 +192,12 @@
   16只用lpips和con进行优化，系数都为1————>最低优化到0.096，l2仍然能正常优化
   17调整层数，不使用16*16的特征图，只是用到输入的1/8（E2style）————>L2优化到最低0.084，但是相比12，lpips更高
   18计算一次损失反传后，F和pSp一起优化，con系数1，层数[0, 2, 3, 6, 7, 20, 21, 23]————>L2优化到最低0.085，但是相比12，lpips更高
+  
+  #########
   19加入moco损失，moco系数0.5，con系数0.5————>L2优化到最低0.093，Lpips：0.415
   20加入moco损失，不用con————>L2优化到最低0.118，Lpips：0.389
+  #########
+  
   21用上采样后的特征图进行损失计算
   
   
@@ -263,7 +263,39 @@
   # CUDA 11.3
   pip install torch==1.12.1+cu113 torchvision==0.13.1+cu113 torchaudio==0.12.1 --extra-index-url https://download.pytorch.org/whl/cu113
   
-  restyle_e4e_church_encode_con1:con系数0.5
+  ########### experiment
+  restyle_e4e_church_encode_con：con系数1 层数[0]
+  restyle_psp_horse_encode_con：con系数0.5 层数[0, 3, 12, 15]
+  restyle_psp_horse_encode_con2：con系数0.5 层数[0, 3, 12, 15] y_hat -> y_hat_clone
+  ：con系数0.5 层数[0, 3, 12, 15] y_hat/y_hat_clone 不是每个iter都进行con的梯度计算，只在后面几个或者前面几个轮次
+  ：层数不使用16*16
+  
+  
+  ########### order
+  python scripts/train_restyle_psp.py \
+  --dataset_type=horse_encode \
+  --encoder_type=ResNetBackboneEncoder \
+  --exp_dir=experiment/restyle_psp_horse_encode \
+  --workers=8 \
+  --batch_size=8 \
+  --test_batch_size=8 \
+  --test_workers=8 \
+  --val_interval=1000 \
+  --save_interval=20000 \
+  --start_from_latent_avg \
+  --lpips_lambda=0.8 \
+  --l2_lambda=1 \
+  --w_norm_lambda=0 \
+  --id_lambda=0 \
+  --moco_lambda=0.5 \
+  --input_nc=6 \
+  --n_iters_per_batch=5 \
+  --output_size=256 \
+  --max_steps 100000 \
+  --stylegan_weights=/HDDdata/LQW/Auxiliary_models/pSp/pretrained_models/stylegan2-horse-config-f.pt \
+  
+  --use_con \
+  --con_lambda=0.5 \
   
   python scripts/train_restyle_e4e.py \
   --dataset_type=horse_encode \
@@ -292,11 +324,11 @@
   --use_con \
   --con_lambda=1
   
-  nohup >> /HDDdata/LQW/restyle-encoder-main/experiment/restyle_e4e_horse_encode_con2/train.log 2>&1 &
+  nohup >> /HDDdata/LQW/restyle-encoder-main/experiment/restyle_psp_horse_encode/train.log 2>&1 &
   
   python scripts/inference_iterative.py \
-  --exp_dir=/HDDdata/LQW/restyle-encoder-main/experiment/restyle_e4e_horse_encode_con/inference \
-  --checkpoint_path=/HDDdata/LQW/restyle-encoder-main/experiment/restyle_e4e_horse_encode_con/checkpoints/best_model.pt \
+  --exp_dir=/HDDdata/LQW/restyle-encoder-main/experiment/restyle_psp_horse_encode_con/inference \
+  --checkpoint_path=/HDDdata/LQW/restyle-encoder-main/experiment/restyle_psp_horse_encode_con/checkpoints/best_model.pt \
   --data_path=/HDDdata/LQW/Restyle_Horse/test \
   --test_batch_size=4 \
   --test_workers=4 \
@@ -310,17 +342,22 @@
   --test_workers=4 \
   --n_iters_per_batch=5
   
+  
+  ########### l2、lpips
   python scripts/calc_losses_on_images.py \
-  --mode lpips \
-  --output_path=/HDDdata/LQW/restyle-encoder-main/experiment/restyle_e4e_horse_encode/inference/inference_results \
+  --mode l2 \
+  --output_path=/HDDdata/LQW/restyle-encoder-main/experiment/restyle_psp_horse_encode_con/inference/inference_results \
   --gt_path=/HDDdata/LQW/Restyle_Horse/test
   
-  python -m pytorch_fid /HDDdata/LQW/Restyle_Horse/test_cv2_transform_256 /HDDdata/LQW/restyle-encoder-main/experiment/restyle_e4e_horse_encode/inference/inference_results/4 --device cuda:0
+  ########### fid
+  python -m pytorch_fid /HDDdata/LQW/Restyle_Horse/test_cv2_resize_256 /HDDdata/LQW/restyle-encoder-main/experiment/restyle_e4e_horse_encode/inference/inference_results/4 --device cuda:0
+  两个数据集图像应该一样大
   
+  ########### psnr、ssim
   python calculate_psnr_ssim.py \
   --mode SSIM \
-  --data_path /HDDdata/LQW/restyle-encoder-main/experiment/restyle_e4e_horse_encode_con/inference/inference_results/4 \
-  --gt_path /HDDdata/LQW/Restyle_Horse/test 
+  --data_path /HDDdata/LQW/restyle-encoder-main/experiment/restyle_e4e_horse_encode/inference/inference_results/4 \
+  --gt_path /HDDdata/LQW/Restyle_Horse/test
   ```
   
   
@@ -443,11 +480,10 @@
 + 找到Wp后，基于它对生成器参数进行优化
   + ![image-20221222104423154](GAN_inversion.assets/image-20221222104423154.png)
   + ![image-20221222104549618](GAN_inversion.assets/image-20221222104549618.png)
-  + ps：不是在大量图形上训练生成器，而是特定于目标图像进行生成器微调
+  + ps：是在大量图形上微调生成器，训练完后得到一个根据数据集微调后的生成器，即推理的时候不需要再去微调生成器，
 + **Locality Regularization**：解决ripple效应——使用非局部LC生成的图像质量会被破坏，引入LR目的将PTI变化限制在隐空间的局部区域
   + 随机sample一个z，StyleGAN中8层全连接层计算Wz，与Wp计算Wr，用Wr输入微调前后的生成器得到${x_r}$和$x_r^*$，计算两者的损失。
   + ![image-20221222110106859](GAN_inversion.assets/image-20221222110106859.png)
-
 + 最终生成器的优化定义为：
   + ![image-20221222110934663](GAN_inversion.assets/image-20221222110934663.png)
 
@@ -715,3 +751,34 @@
     + 确保其他属性与源图像相似
   + ![image-20230306172333811](GAN_inversion.assets/image-20230306172333811.png)
     + 确保编辑过的图像不会变化太大
+
+# Cycle Encoding of a StyleGAN Encoder for Improved Reconstruction and Editability
+
++ 类似PTI，微调生成器能保留很多细节、比如妆容信息
+
+## Motivation
+
++ 当前方法很难平衡好低失真和高编辑质量
++ 对于首次修改生成器的方法PTI，当pivot code使用不经过优化的向量效果差，但当优化步骤过多时效果也会差。因此，针对pivot code的逐图优化方法很难做到失真与可编辑性之间的平衡
+
+## Contribution
+
++ 提出一个Cycle Encoding的方法获得更高质量的pivot code
++ 同时以一种新的方式引入优化微调方案，同时加入正则化项避免优化导致的过拟合
+
+## Model
+
++ ![image-20230310102858470](GAN_inversion.assets/image-20230310102858470.png)
++ 第一步Cycle Encoding
+  + W->W+：就是e4e的训练过程
+  + W+->W：
+    + 先“软”操作：first gradually increase the weight of the delta regularization loss by a factor 𝛽 every 𝑇1 iterations. A large weight of the delta regularization loss enforces Δ𝑖 to be very close to 0
+    + 再“硬”操作：set from Δ𝑁 −1 = 0 to Δ1 = 0 sequentially every 𝑇2 iterations. Finally, the output space of the encoder ends at the W space with ∀𝑖 : Δ𝑖 = 0
++ 第二步Optimization-based refinement
+  + 并不像之前Id_Invert直接优化latent code，而是更新Encoder
+  + 从训练集随机采样M张图片，计算损失更新Encoder
+  + ps：
+    + 是对W+空间的操作，且这一步可以选择是否使用
+    + 影响：以可编辑性的微少退化来减少失真，同时增加了推理时间
++ 第三步Pivotal Tuning
+  + 就是PTI的微调生成器阶段
