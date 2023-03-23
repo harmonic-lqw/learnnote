@@ -203,32 +203,36 @@
   
   python scripts/train.py \
   --dataset_type=ffhq_encode \
-  --exp_dir=/home/upc/Mydisk/UBT/pSp_test/face_1/experiment2 \
+  --exp_dir=/home/upc/Mydisk/UBT/pSp_test/face_use_mlp \
   --workers=8 \
   --batch_size=2 \
-  --test_batch_size=2 \
+  --test_batch_size=8 \
   --test_workers=8 \
   --val_interval=1000 \
-  --save_interval=50000 \
+  --save_interval=100000 \
   --encoder_type=GradualStyleEncoder \
   --start_from_latent_avg \
   --lpips_lambda=0.8 \
   --l2_lambda=1 \
   --id_lambda=0.1 \
-  --output_size=256 \
-  --max_steps=150000 \
-  --optim_name=adam \
+  --output_size=1024 \
+  --max_steps=500000 \
+  --use_mlp \
+  --stylegan_weights=/home/upc/Mydisk/UBT/Auxiliary_models/pSp/pretrained_models/stylegan2-ffhq-config-f.pt
+  
+  
   --use_con \
   --con_lambda=1 \
-  --checkpoint_path=/home/upc/Mydisk/UBT/pSp_test/face_1/experiment/checkpoints/iteration_350000.pt \
   
   
   --dataset_type=church_encode \
   --stylegan_weights=/home/upc/Mydisk/UBT/Auxiliary_models/pSp/pretrained_models/stylegan2-church-config-f.pt \
   --moco_lambda=0.5 \
   
-  nohup >> /home/upc/Mydisk/UBT/pSp_test/face_1/church_train2.log 2>&1 &
-          
+  nohup >> /home/upc/Mydisk/UBT/pSp_test/face_use_mlp/train.log 2>&1 &
+  tmux new -s 'name' # 新建一个tmux会话(虚拟终端)
+  tmux attach -t 'name' # 重新接入一个tmux会话(虚拟终端)
+  https://www.ruanyifeng.com/blog/2019/10/tmux.html
   ```
   
   
@@ -263,23 +267,31 @@
   # CUDA 11.3
   pip install torch==1.12.1+cu113 torchvision==0.13.1+cu113 torchaudio==0.12.1 --extra-index-url https://download.pytorch.org/whl/cu113
   
-  ########### experiment
-  restyle_e4e_church_encode_con：con系数1 层数[0]
-  restyle_psp_horse_encode_con：con系数0.5 层数[0, 3, 12, 15]
-  restyle_psp_horse_encode_con2：con系数0.5 层数[0, 3, 12, 15] y_hat -> y_hat_clone
-  ：con系数0.5 层数[0, 3, 12, 15] y_hat/y_hat_clone 不是每个iter都进行con的梯度计算，只在后面几个或者前面几个轮次
-  ：层数不使用16*16
+  ############ experiment
+  ###### horse
+  restyle_e4e_horse_encode_con：同psp_con5的一样配置 # 一样l2降的快但是生成效果假
+  restyle_psp_horse_encode：不用con # l2最低0.0921
+  restyle_psp_horse_encode_con：con系数0.5 层数[0, 3, 12, 15] y_hat # 效果最好，但是图像出现伪影严重，色彩混乱
+  restyle_psp_horse_encode_con2：con系数0.5 层数[0, 3, 12, 15] y_hat -> y_hat_clone # 使用y_hat的效果要好一些
+  restyle_psp_horse_encode_con3：con系数0.5 层数[3, 6, 12, 15](第一层64、最后一层64、最后一层32、最后一层16) y_hat 每个iter都使用con 修改层数，层数只使用较低分辨率的图
+  restyle_psp_horse_encode_con4：con系数0.5 层数[0, 3, 7, 12] y_hat 每个iter都使用con 修改层数，层数不使用16*16 # 效果很差
+  restyle_psp_horse_encode_con5：con系数0.5 层数[0, 3, 12， 15] y_hat 只在最后一轮使用con # 使用前几层正常backward后优化，再使用con进行backward优化
+  # 第几轮用con的消融实验
+  restyle_psp_horse_encode_con：con系数0.5 层数[0, 3, 12， 15] y_hat 在刚开始的轮次使用con
+  
+  ###### cars
+  restyle_psp_car_encode_con：tgt_input = torch.cat([y_hat, y_hat], dim=1) -> torch.cat([x, y_hat], dim=1)
   
   
-  ########### order
+  ############ order
   python scripts/train_restyle_psp.py \
-  --dataset_type=horse_encode \
+  --dataset_type=cars_encode \
   --encoder_type=ResNetBackboneEncoder \
-  --exp_dir=experiment/restyle_psp_horse_encode \
+  --exp_dir=experiment/restyle_psp_car_encode_con \
   --workers=8 \
   --batch_size=8 \
-  --test_batch_size=8 \
-  --test_workers=8 \
+  --test_batch_size=4 \
+  --test_workers=4 \
   --val_interval=1000 \
   --save_interval=20000 \
   --start_from_latent_avg \
@@ -288,19 +300,18 @@
   --w_norm_lambda=0 \
   --id_lambda=0 \
   --moco_lambda=0.5 \
+  --output_size=512 \
   --input_nc=6 \
-  --n_iters_per_batch=5 \
-  --output_size=256 \
-  --max_steps 100000 \
-  --stylegan_weights=/HDDdata/LQW/Auxiliary_models/pSp/pretrained_models/stylegan2-horse-config-f.pt \
-  
+  --n_iters_per_batch=6 \
+  --max_steps 200000 \
+  --stylegan_weights=/HDDdata/LQW/Auxiliary_models/pSp/pretrained_models/stylegan2-car-config-f.pt \
   --use_con \
   --con_lambda=0.5 \
   
   python scripts/train_restyle_e4e.py \
   --dataset_type=horse_encode \
   --encoder_type=ResNetProgressiveBackboneEncoder \
-  --exp_dir=experiment/restyle_e4e_horse_encode_con2 \
+  --exp_dir=experiment/restyle_e4e_horse_encode_con \
   --workers=8 \
   --batch_size=8 \
   --test_batch_size=8 \
@@ -322,13 +333,13 @@
   --stylegan_weights=/HDDdata/LQW/Auxiliary_models/pSp/pretrained_models/stylegan2-horse-config-f.pt \
   --max_steps 100000 \
   --use_con \
-  --con_lambda=1
+  --con_lambda=0.5
   
-  nohup >> /HDDdata/LQW/restyle-encoder-main/experiment/restyle_psp_horse_encode/train.log 2>&1 &
+  nohup >> /HDDdata/LQW/restyle-encoder-main/experiment/restyle_psp_car_encode_con/train.log 2>&1 &
   
   python scripts/inference_iterative.py \
-  --exp_dir=/HDDdata/LQW/restyle-encoder-main/experiment/restyle_psp_horse_encode_con/inference \
-  --checkpoint_path=/HDDdata/LQW/restyle-encoder-main/experiment/restyle_psp_horse_encode_con/checkpoints/best_model.pt \
+  --exp_dir=/HDDdata/LQW/restyle-encoder-main/experiment/restyle_psp_horse_encode_con5/inference \
+  --checkpoint_path=/HDDdata/LQW/restyle-encoder-main/experiment/restyle_psp_horse_encode_con5/checkpoints/best_model.pt \
   --data_path=/HDDdata/LQW/Restyle_Horse/test \
   --test_batch_size=4 \
   --test_workers=4 \
@@ -343,20 +354,20 @@
   --n_iters_per_batch=5
   
   
-  ########### l2、lpips
+  ############ l2、lpips
   python scripts/calc_losses_on_images.py \
   --mode l2 \
-  --output_path=/HDDdata/LQW/restyle-encoder-main/experiment/restyle_psp_horse_encode_con/inference/inference_results \
+  --output_path=/HDDdata/LQW/restyle-encoder-main/experiment/restyle_psp_horse_encode_con5/inference/inference_results \
   --gt_path=/HDDdata/LQW/Restyle_Horse/test
   
-  ########### fid
-  python -m pytorch_fid /HDDdata/LQW/Restyle_Horse/test_cv2_resize_256 /HDDdata/LQW/restyle-encoder-main/experiment/restyle_e4e_horse_encode/inference/inference_results/4 --device cuda:0
+  ############ fid
+  python -m pytorch_fid /HDDdata/LQW/Restyle_Horse/test_cv2_resize_256 /HDDdata/LQW/restyle-encoder-main/experiment/restyle_psp_horse_encode_con5/inference/inference_results/4 --device cuda:0
   两个数据集图像应该一样大
   
-  ########### psnr、ssim
+  ############ psnr、ssim
   python calculate_psnr_ssim.py \
   --mode SSIM \
-  --data_path /HDDdata/LQW/restyle-encoder-main/experiment/restyle_e4e_horse_encode/inference/inference_results/4 \
+  --data_path /HDDdata/LQW/restyle-encoder-main/experiment/restyle_psp_horse_encode_con5/inference/inference_results/4 \
   --gt_path /HDDdata/LQW/Restyle_Horse/test
   ```
   
@@ -480,7 +491,7 @@
 + 找到Wp后，基于它对生成器参数进行优化
   + ![image-20221222104423154](GAN_inversion.assets/image-20221222104423154.png)
   + ![image-20221222104549618](GAN_inversion.assets/image-20221222104549618.png)
-  + ps：是在大量图形上微调生成器，训练完后得到一个根据数据集微调后的生成器，即推理的时候不需要再去微调生成器，
+  + ps：不是在大量图像上微调出一个通用生成器，而是对于每一个新图像都要进行两阶段的优化和微调
 + **Locality Regularization**：解决ripple效应——使用非局部LC生成的图像质量会被破坏，引入LR目的将PTI变化限制在隐空间的局部区域
   + 随机sample一个z，StyleGAN中8层全连接层计算Wz，与Wp计算Wr，用Wr输入微调前后的生成器得到${x_r}$和$x_r^*$，计算两者的损失。
   + ![image-20221222110106859](GAN_inversion.assets/image-20221222110106859.png)
@@ -782,3 +793,26 @@
     + 影响：以可编辑性的微少退化来减少失真，同时增加了推理时间
 + 第三步Pivotal Tuning
   + 就是PTI的微调生成器阶段
+
+# HyperInverter: Improving StyleGAN Inversion via Hypernetwork
+
+## Motivation
+
++ 当前基于超网络的方法PTI其实是一种优化方法，虽然通过超网络将输入图像更多的信息提取出来用于微调生成器，以重建高质量图像，但推理速度太慢、而且失真和编辑的权衡也不是很好
+
+## Contribution
+
++ 提出一种两阶段都是基于编码器的方法，同样引入超网络提取输入图像信息，为每张图像微调生成器
+
+## Model
+
++ ![image-20230321170957675](GAN_inversion.assets/image-20230321170957675.png)
+  + L表示Style layers的层数、每个需要微调的卷积层都对应一个超网络H（N个卷积层需要微调，共有N个H）
+  + ![image-20230321172245576](GAN_inversion.assets/image-20230321172245576.png)
+    + 文中说：生成器每个卷积层会对应一个相关的索引为`i`的Style layer（`i`和`j`不是一一对应，由`Figure 8`可以看出卷积层还包括toRGB层，只是微调toRGB层权重对结果的贡献不显著）
++ ![image-20230321171012466](GAN_inversion.assets/image-20230321171012466.png)
+  + D取256
+
+## Loss
+
++ 最常用的重建损失+判别损失
