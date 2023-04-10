@@ -275,21 +275,32 @@
   restyle_psp_horse_encode_con2：con系数0.5 层数[0, 3, 12, 15] y_hat -> y_hat_clone # 使用y_hat的效果要好一些
   restyle_psp_horse_encode_con3：con系数0.5 层数[3, 6, 12, 15](第一层64、最后一层64、最后一层32、最后一层16) y_hat 每个iter都使用con 修改层数，层数只使用较低分辨率的图
   restyle_psp_horse_encode_con4：con系数0.5 层数[0, 3, 7, 12] y_hat 每个iter都使用con 修改层数，层数不使用16*16 # 效果很差
-  restyle_psp_horse_encode_con5：con系数0.5 层数[0, 3, 12， 15] y_hat 只在最后一轮使用con # 使用前几层正常backward后优化，再使用con进行backward优化
+  restyle_psp_horse_encode_con5：con系数0.5 层数[0, 3, 12， 15] y_hat 只在最后一轮使用con # 使用前几层正常backward后优化，再使用con进行backward优化 成功一点L2、PSNR、SSIM要好一些
   # 第几轮用con的消融实验
   restyle_psp_horse_encode_con：con系数0.5 层数[0, 3, 12， 15] y_hat 在刚开始的轮次使用con
   
-  ###### cars
-  restyle_psp_car_encode_con：tgt_input = torch.cat([y_hat, y_hat], dim=1) -> torch.cat([x, y_hat], dim=1)
+  ###### cars 官网l2最优0.072
+  # LQW
+  restyle_psp_car_encode_con：tgt_input = torch.cat([y_hat, y_hat], dim=1) -> torch.cat([x, y_hat], dim=1) 先5个iter正常优化，最后一个iter使用con # 失败，0.073 没有伪影，y_hat和xconcat的影响？loss和con分开backward的影响？
+  restyle_psp_car_encode_con2：4个iter优化后，两个con+iter # 失败
+  restyle_psp_car_encode_con3：3个iter优化后 3个con+iter con系数1 # 伪影非常严重
+  
+  restyle_psp_car_encode_con4：与con相比，不进行y_hat替换为x，但还是先5个iter正常优化，最后一个iter使用con # 测试一下，因为con很接近官网
+  # UBT
+  restyle_psp_car_encode_con3：同psp_horse_con5一样配置，但是前几层正常backward后没有优化 # 效果不好，伪影严重
+  
+  restyle_psp_car_encode_con4：同con3一样配置，但是前几层正常backward后优化 # 为了看看con3为什么会出现伪影，是因为正常backward后没有优化就使用con？还是x替换成为y_hat？
+  restyle_psp_car_encode_con5：同con3一样配置，但是前几层正常backward后优化，但是torch.cat([y_hat, y_hat], dim=1) -> torch.cat([x, y_hat], dim=1) 
+  restyle_psp_car_encode_con6：同LQW的con4 # 一定要成功
   
   
   ############ order
   python scripts/train_restyle_psp.py \
   --dataset_type=cars_encode \
   --encoder_type=ResNetBackboneEncoder \
-  --exp_dir=experiment/restyle_psp_car_encode_con \
-  --workers=8 \
-  --batch_size=8 \
+  --exp_dir=experiment/restyle_psp_car_encode_con6 \
+  --workers=2 \
+  --batch_size=2 \
   --test_batch_size=4 \
   --test_workers=4 \
   --val_interval=1000 \
@@ -304,12 +315,14 @@
   --input_nc=6 \
   --n_iters_per_batch=6 \
   --max_steps 200000 \
-  --stylegan_weights=/HDDdata/LQW/Auxiliary_models/pSp/pretrained_models/stylegan2-car-config-f.pt \
+  --stylegan_weights=/home/upc/Mydisk/UBT/Auxiliary_models/pSp/pretrained_models/stylegan2-car-config-f.pt \
   --use_con \
   --con_lambda=0.5 \
   
+  --stylegan_weights=/HDDdata/LQW/Auxiliary_models/pSp/pretrained_models/stylegan2-car-config-f.pt \
+  
   python scripts/train_restyle_e4e.py \
-  --dataset_type=horse_encode \
+  --dataset_type=cars_encode \
   --encoder_type=ResNetProgressiveBackboneEncoder \
   --exp_dir=experiment/restyle_e4e_horse_encode_con \
   --workers=8 \
@@ -327,20 +340,31 @@
   --progressive_start 20000 \
   --progressive_step_every 2000 \
   --input_nc 6 \
-  --n_iters_per_batch=5 \
-  --output_size 256 \
+  --n_iters_per_batch=6 \
+  --output_size 512 \
   --save_interval 20000 \
-  --stylegan_weights=/HDDdata/LQW/Auxiliary_models/pSp/pretrained_models/stylegan2-horse-config-f.pt \
-  --max_steps 100000 \
+  --stylegan_weights=/HDDdata/LQW/Auxiliary_models/pSp/pretrained_models/stylegan2-car-config-f.pt \
+  --max_steps 200000 \
   --use_con \
-  --con_lambda=0.5
+  --con_lambda=1
   
-  nohup >> /HDDdata/LQW/restyle-encoder-main/experiment/restyle_psp_car_encode_con/train.log 2>&1 &
+  nohup >> /home/upc/Mydisk/UBT/Model/restyle-encoder-main/experiment/restyle_psp_car_encode_con6/train.log 2>&1 &
+  /home/upc/Mydisk/UBT/Model/restyle-encoder-main/experiment
+  
+  
+  # inference
+  python scripts/inference_iterative.py \
+  --exp_dir=/HDDdata/LQW/restyle-encoder-main/experiment/restyle_psp_car_encode_official/inference \
+  --checkpoint_path=/HDDdata/LQW/Auxiliary_models/pSp/pretrained_checkpoint/restyle_psp_cars_encode.pt \
+  --data_path=/HDDdata/LQW/Stanford_Car/cars_test_restyle \
+  --test_batch_size=4 \
+  --test_workers=4 \
+  --n_iters_per_batch=5
   
   python scripts/inference_iterative.py \
-  --exp_dir=/HDDdata/LQW/restyle-encoder-main/experiment/restyle_psp_horse_encode_con5/inference \
-  --checkpoint_path=/HDDdata/LQW/restyle-encoder-main/experiment/restyle_psp_horse_encode_con5/checkpoints/best_model.pt \
-  --data_path=/HDDdata/LQW/Restyle_Horse/test \
+  --exp_dir=/home/upc/Mydisk/UBT/Model/restyle-encoder-main/experiment/restyle_psp_car_encode_official \
+  --checkpoint_path=/home/upc/Mydisk/UBT/Auxiliary_models/pSp/pretrained_checkpoint/restyle_psp_cars_encode.pt \
+  --data_path=/home/upc/Mydisk/UBT/dataset/Stanford_Car/cars_test_restyle \
   --test_batch_size=4 \
   --test_workers=4 \
   --n_iters_per_batch=5
@@ -356,9 +380,9 @@
   
   ############ l2、lpips
   python scripts/calc_losses_on_images.py \
-  --mode l2 \
-  --output_path=/HDDdata/LQW/restyle-encoder-main/experiment/restyle_psp_horse_encode_con5/inference/inference_results \
-  --gt_path=/HDDdata/LQW/Restyle_Horse/test
+  --mode lpips \
+  --output_path=/home/upc/Mydisk/UBT/Model/restyle-encoder-main/experiment/restyle_psp_car_encode_official/inference_results \
+  --gt_path=/home/upc/Mydisk/UBT/dataset/Stanford_Car/cars_test_restyle
   
   ############ fid
   python -m pytorch_fid /HDDdata/LQW/Restyle_Horse/test_cv2_resize_256 /HDDdata/LQW/restyle-encoder-main/experiment/restyle_psp_horse_encode_con5/inference/inference_results/4 --device cuda:0
@@ -367,8 +391,8 @@
   ############ psnr、ssim
   python calculate_psnr_ssim.py \
   --mode SSIM \
-  --data_path /HDDdata/LQW/restyle-encoder-main/experiment/restyle_psp_horse_encode_con5/inference/inference_results/4 \
-  --gt_path /HDDdata/LQW/Restyle_Horse/test
+  --data_path /home/upc/Mydisk/UBT/Model/restyle-encoder-main/experiment/restyle_psp_car_encode_official/inference_results/4 \
+  --gt_path /home/upc/Mydisk/UBT/dataset/Stanford_Car/cars_test_restyle
   ```
   
   

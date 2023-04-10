@@ -1,4 +1,4 @@
 cd D:\note_file
 git add note_article/*
-git commit -m "Cycle Encoding"
+git commit -m "HyperInverter"
 git push origin master

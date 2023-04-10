@@ -1,4 +1,2 @@
-# SketchInverter: Multi-Class Sketch-Based Image Generation via GAN Inversion
-
-
+# Delving StyleGAN Inversion for Image Editing: A Foundation Latent Space Viewpoint
 
