@@ -100,6 +100,44 @@
 + 总损失
 + ![image-20221201140234408](GAN_inversion.assets/image-20221201140234408.png)
 
+## Code
+
++ ```python
+  # inference 不同的数据集，代码96行需要调整保存图片名长度，与GT一致才可以后续计算loss
+  python scripts/inference.py \
+  --images_dir=/home/upc/Mydisk/UBT/dataset/CelebAHQ/test \
+  --save_dir=/home/upc/Mydisk/UBT/Model/encoder4editing-main/experiment/face \
+  /home/upc/Mydisk/UBT/Auxiliary_models/pSp/pretrained_checkpoint/e4e_ffhq_encode.pt
+  
+  python scripts/calc_losses_on_images.py \
+  --mode lpips \
+  --data_path=/home/upc/Mydisk/UBT/Model/encoder4editing-main/experiment/face/inversions \
+  --gt_path=/home/upc/Mydisk/UBT/dataset/CelebAHQ/test \
+  
+  
+  python scripts/train.py \
+  --dataset_type afhq_wild_encode \
+  --exp_dir experiment/afhq \
+  --start_from_latent_avg \
+  --use_w_pool \
+  --w_discriminator_lambda 0.1 \
+  --progressive_start 20000 \
+  --id_lambda 0.5 \
+  --l2_lambda 1.0 \
+  --lpips_lambda 0.8 \
+  --val_interval 1000 \
+  --save_interval 100000 \
+  --max_steps 200000 \
+  --stylegan_size 256 \
+  --stylegan_weights /HDDdata/LQW/Auxiliary_models/pSp/pretrained_models/afhqwild.pt \
+  --workers 8 \
+  --batch_size 8 \
+  --test_batch_size 8 \
+  --test_workers 8
+  
+  nohup >> /HDDdata/LQW/Baseline/encoder4editing-main/experiment/train_afhq.log 2>&1 &
+  ```
+
 # (pSp)Encoding in Style: a StyleGAN Encoder for Image-to-Image Translation
 
 ## Motivation
@@ -154,18 +192,19 @@
           "梯度反传"
           "优化"
   python scripts/inference.py \
-  --exp_dir=/HDDdata/LQW/pSp_test/20 \
-  --checkpoint_path=/HDDdata/LQW/pSp_test/best_model_20.pt \
-  --data_path=/HDDdata/LQW/LSUN_church/church_outdoor_val \
-  --test_batch_size=8 \
+  --exp_dir=/home/upc/Mydisk/UBT/Model/pixel2style2pixel-master/experiment/face \
+  --checkpoint_path=/home/upc/Mydisk/UBT/Auxiliary_models/pSp/pretrained_checkpoint/psp_ffhq_encode.pt \
+  --data_path=/home/upc/Mydisk/UBT/dataset/CelebAHQ/test \
+  --test_batch_size=4 \
   --test_workers=4 \
   --couple_outputs
   
   
   python scripts/calc_losses_on_images.py \
   --mode lpips \
-  --data_path=/HDDdata/LQW/pSp_test/19/inference_results \
-  --gt_path=/HDDdata/LQW/LSUN_church/church_outdoor_val \
+  --data_path=/home/upc/Mydisk/UBT/Model/restyle-encoder-main/experiment/restyle_church/Ablation/con1/edit/image_all \
+  --gt_path=/home/upc/Mydisk/UBT/dataset/LSUN_church/church_outdoor_val
+  
   
   python scripts/calc_id_loss_parallel.py \
   --data_path=/home/upc/Mydisk/UBT/pSp_test_exp/pSp_2_face/inference_results \
@@ -202,10 +241,10 @@
   
   
   python scripts/train.py \
-  --dataset_type=ffhq_encode \
-  --exp_dir=/home/upc/Mydisk/UBT/pSp_test/face_use_mlp \
-  --workers=8 \
-  --batch_size=2 \
+  --dataset_type=horse_encode \
+  --exp_dir=experiment/horse \
+  --workers=4 \
+  --batch_size=4 \
   --test_batch_size=8 \
   --test_workers=8 \
   --val_interval=1000 \
@@ -214,22 +253,35 @@
   --start_from_latent_avg \
   --lpips_lambda=0.8 \
   --l2_lambda=1 \
-  --id_lambda=0.1 \
-  --output_size=1024 \
-  --max_steps=500000 \
+  --moco_lambda=0.5 \
+  --output_size=256 \
+  --max_steps=200000 \
+  --stylegan_weights=/HDDdata/LQW/Auxiliary_models/pSp/pretrained_models/stylegan2-horse-config-f.pt
+  
   --use_mlp \
-  --stylegan_weights=/home/upc/Mydisk/UBT/Auxiliary_models/pSp/pretrained_models/stylegan2-ffhq-config-f.pt
-  
-  
   --use_con \
   --con_lambda=1 \
   
-  
-  --dataset_type=church_encode \
-  --stylegan_weights=/home/upc/Mydisk/UBT/Auxiliary_models/pSp/pretrained_models/stylegan2-church-config-f.pt \
+  python scripts/train.py \
+  --dataset_type=afhq_wild_encode \
+  --exp_dir=experiment/afhq \
+  --workers=8 \
+  --batch_size=8 \
+  --test_batch_size=8 \
+  --test_workers=8 \
+  --val_interval=1000 \
+  --save_interval=100000 \
+  --encoder_type=GradualStyleEncoder \
+  --start_from_latent_avg \
+  --lpips_lambda=0.8 \
+  --l2_lambda=1 \
   --moco_lambda=0.5 \
+  --output_size=256 \
+  --max_steps=200000 \
+  --stylegan_weights=/HDDdata/LQW/Auxiliary_models/pSp/pretrained_models/afhqwild.pt
   
-  nohup >> /home/upc/Mydisk/UBT/pSp_test/face_use_mlp/train.log 2>&1 &
+  nohup >> /home/upc/Mydisk/UBT/Model/pixel2style2pixel-master/experiment/train_horse.log 2>&1 &
+        >> /HDDdata/LQW/Baseline/pixel2style2pixel-master/experiment/train_afhq.log 2>&1 &
   tmux new -s 'name' # 新建一个tmux会话(虚拟终端)
   tmux attach -t 'name' # 重新接入一个tmux会话(虚拟终端)
   https://www.ruanyifeng.com/blog/2019/10/tmux.html
@@ -276,123 +328,159 @@
   restyle_psp_horse_encode_con3：con系数0.5 层数[3, 6, 12, 15](第一层64、最后一层64、最后一层32、最后一层16) y_hat 每个iter都使用con 修改层数，层数只使用较低分辨率的图
   restyle_psp_horse_encode_con4：con系数0.5 层数[0, 3, 7, 12] y_hat 每个iter都使用con 修改层数，层数不使用16*16 # 效果很差
   restyle_psp_horse_encode_con5：con系数0.5 层数[0, 3, 12， 15] y_hat 只在最后一轮使用con # 使用前几层正常backward后优化，再使用con进行backward优化 成功一点L2、PSNR、SSIM要好一些
-  # 第几轮用con的消融实验
-  restyle_psp_horse_encode_con：con系数0.5 层数[0, 3, 12， 15] y_hat 在刚开始的轮次使用con
   
-  ###### cars 官网l2最优0.072
   # LQW
-  restyle_psp_car_encode_con：tgt_input = torch.cat([y_hat, y_hat], dim=1) -> torch.cat([x, y_hat], dim=1) 先5个iter正常优化，最后一个iter使用con # 失败，0.073 没有伪影，y_hat和xconcat的影响？loss和con分开backward的影响？
-  restyle_psp_car_encode_con2：4个iter优化后，两个con+iter # 失败
-  restyle_psp_car_encode_con3：3个iter优化后 3个con+iter con系数1 # 伪影非常严重
+  restyle_psp_church_encode_con：同psp_horse_con5一样 # 损失较理想，但是有伪影，con系数1.0
+  restyle_psp_church_encode_con_last100000：restyle_psp_church_encode_con的最后100000轮
   
-  restyle_psp_car_encode_con4：与con相比，不进行y_hat替换为x，但还是先5个iter正常优化，最后一个iter使用con # 测试一下，因为con很接近官网
+  restyle_psp_church_encode_con1：在第一轮使用con
+  restyle_psp_church_encode_con2：第一轮对Encoder训练，最后一轮对N训练
+  
+  restyle_psp_afhq_encode_con：
+  
   # UBT
-  restyle_psp_car_encode_con3：同psp_horse_con5一样配置，但是前几层正常backward后没有优化 # 效果不好，伪影严重
-  
-  restyle_psp_car_encode_con4：同con3一样配置，但是前几层正常backward后优化 # 为了看看con3为什么会出现伪影，是因为正常backward后没有优化就使用con？还是x替换成为y_hat？
-  restyle_psp_car_encode_con5：同con3一样配置，但是前几层正常backward后优化，但是torch.cat([y_hat, y_hat], dim=1) -> torch.cat([x, y_hat], dim=1) 
-  restyle_psp_car_encode_con6：同LQW的con4 # 一定要成功
-  
+  restyle_psp_car_official:自己训练的官网
+  restyle_psp_car_encode_official：用官网给出的ckpt推理
+  restyle_psp_car_encode_con：同psp_horse_con5一样配置 # 失败
+  restyle_psp_car_encode_con2：最后两轮都用
+  restyle_psp_car_encode_con3：每一轮都用con # 直接损失爆炸
   
   ############ order
   python scripts/train_restyle_psp.py \
-  --dataset_type=cars_encode \
+  --dataset_type=church_encode \
   --encoder_type=ResNetBackboneEncoder \
-  --exp_dir=experiment/restyle_psp_car_encode_con6 \
-  --workers=2 \
-  --batch_size=2 \
-  --test_batch_size=4 \
-  --test_workers=4 \
+  --exp_dir=experiment/church/Ablation/con12345 \
+  --workers=8 \
+  --batch_size=8 \
+  --test_batch_size=8 \
+  --test_workers=8 \
   --val_interval=1000 \
-  --save_interval=20000 \
+  --save_interval=100000 \
   --start_from_latent_avg \
   --lpips_lambda=0.8 \
   --l2_lambda=1 \
   --w_norm_lambda=0 \
   --id_lambda=0 \
   --moco_lambda=0.5 \
-  --output_size=512 \
+  --output_size=256 \
   --input_nc=6 \
-  --n_iters_per_batch=6 \
+  --n_iters_per_batch=5 \
   --max_steps 200000 \
-  --stylegan_weights=/home/upc/Mydisk/UBT/Auxiliary_models/pSp/pretrained_models/stylegan2-car-config-f.pt \
   --use_con \
-  --con_lambda=0.5 \
+  --con_lambda=1.0 \
+  --stylegan_weights=/HDDdata/LQW/Auxiliary_models/pSp/pretrained_models/stylegan2-church-config-f.pt \
   
-  --stylegan_weights=/HDDdata/LQW/Auxiliary_models/pSp/pretrained_models/stylegan2-car-config-f.pt \
   
-  python scripts/train_restyle_e4e.py \
-  --dataset_type=cars_encode \
-  --encoder_type=ResNetProgressiveBackboneEncoder \
-  --exp_dir=experiment/restyle_e4e_horse_encode_con \
-  --workers=8 \
-  --batch_size=8 \
+  python scripts/train_restyle_psp.py \
+  --dataset_type=church_encode \
+  --encoder_type=ResNetBackboneEncoder \
+  --exp_dir=experiment/restyle_church/Ablation/con345_test \
+  --workers=2 \
+  --batch_size=2 \
   --test_batch_size=8 \
   --test_workers=8 \
+  --val_interval=1000 \
+  --save_interval=100000 \
   --start_from_latent_avg \
   --lpips_lambda=0.8 \
   --l2_lambda=1 \
-  --delta_norm_lambda 0.0002 \
-  --id_lambda 0 \
-  --moco_lambda 0.5 \
-  --use_w_pool \
-  --w_discriminator_lambda 0.1 \
-  --progressive_start 20000 \
-  --progressive_step_every 2000 \
-  --input_nc 6 \
-  --n_iters_per_batch=6 \
-  --output_size 512 \
-  --save_interval 20000 \
-  --stylegan_weights=/HDDdata/LQW/Auxiliary_models/pSp/pretrained_models/stylegan2-car-config-f.pt \
+  --w_norm_lambda=0 \
+  --id_lambda=0 \
+  --moco_lambda=0.5 \
+  --output_size=256 \
+  --input_nc=6 \
+  --n_iters_per_batch=5 \
   --max_steps 200000 \
   --use_con \
-  --con_lambda=1
+  --con_lambda=1.0 \
+  --stylegan_weights=/home/upc/Mydisk/UBT/Auxiliary_models/pSp/pretrained_models/stylegan2-church-config-f.pt \
   
-  nohup >> /home/upc/Mydisk/UBT/Model/restyle-encoder-main/experiment/restyle_psp_car_encode_con6/train.log 2>&1 &
-  /home/upc/Mydisk/UBT/Model/restyle-encoder-main/experiment
   
+  
+  >> /HDDdata/LQW/restyle-encoder-main/experiment/church/Ablation/con12345/train.log 2>&1 &
+  >> /home/upc/Mydisk/UBT/Model/restyle-encoder-main/experiment/restyle_church/Ablation/con345_test/train.log 2>&1 &
+  
+  # face
+  python scripts/train_restyle_psp.py \
+  --dataset_type=ffhq_encode \
+  --encoder_type=BackboneEncoder \
+  --exp_dir=experiment/face/con5 \
+  --workers=4 \
+  --batch_size=4 \
+  --test_batch_size=8 \
+  --test_workers=8 \
+  --val_interval=1000 \
+  --save_interval=100000 \
+  --start_from_latent_avg \
+  --lpips_lambda=0.8 \
+  --l2_lambda=1 \
+  --w_norm_lambda=0 \
+  --id_lambda=0.1 \
+  --moco_lambda=0 \
+  --output_size=1024 \
+  --input_nc=6 \
+  --n_iters_per_batch=5 \
+  --max_steps 200000 \
+  --stylegan_weights=/HDDdata/LQW/Auxiliary_models/pSp/pretrained_models/stylegan2-ffhq-config-f.pt \
+  --use_con \
+  --con_lambda=1.0 \
+  
+  --checkpoint_path /HDDdata/LQW/restyle-encoder-main/experiment/face/3090_200000/checkpoints/iteration_100000.pt \
+  
+  >> /HDDdata/LQW/restyle-encoder-main/experiment/face/con5/train.log 2>&1 &
   
   # inference
   python scripts/inference_iterative.py \
-  --exp_dir=/HDDdata/LQW/restyle-encoder-main/experiment/restyle_psp_car_encode_official/inference \
-  --checkpoint_path=/HDDdata/LQW/Auxiliary_models/pSp/pretrained_checkpoint/restyle_psp_cars_encode.pt \
-  --data_path=/HDDdata/LQW/Stanford_Car/cars_test_restyle \
+  --exp_dir=/home/upc/Mydisk/UBT/Model/restyle-encoder-main/experiment/restyle_psp_ffhq_encode_con \
+  --checkpoint_path=/home/upc/Mydisk/UBT/Model/restyle-encoder-main/experiment/restyle_psp_ffhq_encode_con/best_model_face.pt \
+  --data_path=/home/upc/Mydisk/UBT/dataset/CelebAHQ/test \
   --test_batch_size=4 \
   --test_workers=4 \
   --n_iters_per_batch=5
   
   python scripts/inference_iterative.py \
-  --exp_dir=/home/upc/Mydisk/UBT/Model/restyle-encoder-main/experiment/restyle_psp_car_encode_official \
-  --checkpoint_path=/home/upc/Mydisk/UBT/Auxiliary_models/pSp/pretrained_checkpoint/restyle_psp_cars_encode.pt \
-  --data_path=/home/upc/Mydisk/UBT/dataset/Stanford_Car/cars_test_restyle \
+  --exp_dir=/HDDdata/LQW/restyle-encoder-main/experiment/face \
+  --checkpoint_path=/HDDdata/LQW/Auxiliary_models/face_4090_200000.pt \
+  --data_path=/HDDdata/LQW/CelebAHQ/test \
   --test_batch_size=4 \
   --test_workers=4 \
   --n_iters_per_batch=5
   
   python scripts/inference_iterative_save_coupled.py \
-  --exp_dir=/HDDdata/LQW/restyle-encoder-main/experiment/restyle_e4e_church_encode_con1/inference/couple \
-  --checkpoint_path=/HDDdata/LQW/restyle-encoder-main/experiment/restyle_e4e_church_encode_con1/checkpoints/best_model.pt \
-  --data_path=/HDDdata/LQW/LSUN_church/church_outdoor_val \
+  --exp_dir=/HDDdata/LQW/restyle-encoder-main/experiment/face \
+  --checkpoint_path=/HDDdata/LQW/Auxiliary_models/face_4090_200000.pt \
+  --data_path=/HDDdata/LQW/CelebAHQ/test \
   --test_batch_size=4 \
   --test_workers=4 \
   --n_iters_per_batch=5
   
+  python editing/inference_editing.py \
+  --exp_dir=/home/upc/Mydisk/UBT/Model/restyle-encoder-main/experiment/restyle_e4e_ffhq_official \
+  --checkpoint_path=/home/upc/Mydisk/UBT/Auxiliary_models/pSp/pretrained_checkpoint/restyle_e4e_ffhq_encode.pt \
+  --data_path=/home/upc/Mydisk/UBT/dataset/CelebAHQ/test \
+  --test_batch_size=4 \
+  --test_workers=4 \
+  --n_iters_per_batch=5 \
+  --edit_directions=age,pose,smile \
+  --factor_ranges=5,5,5
+  >> /home/upc/Mydisk/UBT/Model/restyle-encoder-main/experiment/restyle_e4e_ffhq_official/editing.log 2>&1 &
+  
   
   ############ l2、lpips
   python scripts/calc_losses_on_images.py \
-  --mode lpips \
-  --output_path=/home/upc/Mydisk/UBT/Model/restyle-encoder-main/experiment/restyle_psp_car_encode_official/inference_results \
-  --gt_path=/home/upc/Mydisk/UBT/dataset/Stanford_Car/cars_test_restyle
+  --mode l2 \
+  --output_path=/home/upc/Mydisk/UBT/Model/restyle-encoder-main/experiment/restyle_psp_ffhq_encode_con/inference_results \
+  --gt_path=/home/upc/Mydisk/UBT/dataset/CelebAHQ/test
   
   ############ fid
-  python -m pytorch_fid /HDDdata/LQW/Restyle_Horse/test_cv2_resize_256 /HDDdata/LQW/restyle-encoder-main/experiment/restyle_psp_horse_encode_con5/inference/inference_results/4 --device cuda:0
+  python -m pytorch_fid /home/upc/Mydisk/UBT/dataset/afhq/val_image /home/upc/Mydisk/UBT/Model/restyle-encoder-main/experiment/restyle_psp_afhq_encode_con2/inference_results/4 --device cuda:0
   两个数据集图像应该一样大
   
   ############ psnr、ssim
   python calculate_psnr_ssim.py \
   --mode SSIM \
-  --data_path /home/upc/Mydisk/UBT/Model/restyle-encoder-main/experiment/restyle_psp_car_encode_official/inference_results/4 \
-  --gt_path /home/upc/Mydisk/UBT/dataset/Stanford_Car/cars_test_restyle
+  --data_path /home/upc/Mydisk/UBT/Model/restyle-encoder-main/experiment/restyle_psp_ffhq_encode_con/inference_results/4 \
+  --gt_path /home/upc/Mydisk/UBT/dataset/CelebAHQ/test
   ```
   
   
@@ -787,6 +875,37 @@
   + ![image-20230306172333811](GAN_inversion.assets/image-20230306172333811.png)
     + 确保编辑过的图像不会变化太大
 
+## Code
+
++ ```python
+  python scripts/train.py \
+  --dataset_type=horse_encode \
+  --exp_dir=experiment/horse \
+  --workers=8 \
+  --batch_size=8 \
+  --test_batch_size=8 \
+  --test_workers=8 \
+  --val_interval=1000 \
+  --save_interval=100000 \
+  --lpips_lambda=0.8 \
+  --l2_lambda=1 \
+  --id_lambda=0.5 \
+  --output_size=256 \
+  --max_steps=100000 \
+  --stylegan_weights=/HDDdata/LQW/Auxiliary_models/pSp/pretrained_models/stylegan2-horse-config-f.pt
+  
+  >> /HDDdata/LQW/Baseline/style-transformer-main/experiment/train_horse.log 2>&1 &
+  
+  python scripts/inference.py \
+  --exp_dir=experiment/face \
+  --checkpoint_path=/home/upc/Mydisk/UBT/Auxiliary_models/pSp/pretrained_checkpoint/style_transformer_ffhq.pt \
+  --data_path=/home/upc/Mydisk/UBT/dataset/CelebAHQ/test \
+  --test_batch_size=4 \
+  --test_workers=4 \
+  ```
+  
+  
+
 # Cycle Encoding of a StyleGAN Encoder for Improved Reconstruction and Editability
 
 + 类似PTI，微调生成器能保留很多细节、比如妆容信息
@@ -840,3 +959,39 @@
 ## Loss
 
 + 最常用的重建损失+判别损失
+
+## Code
+
+```python
+DOMAIN="churches"
+METHODS="restyle_e4e"
+DIRECTION="clouds, trees"
+INPUT_DATA_DIR="/home/upc/Mydisk/UBT/dataset/LSUN_church/church_outdoor_val"
+SAVED_RESULTS_DIR_NAME(input_data_id)="/home/upc/Mydisk/UBT/Model/restyle-encoder-main/experiment/restyle_church/encode_con_edit"
+MAX_NUM_IMAGES=10
+SAVED_SIZE=1024
+MIN_MAG=-30  
+MAX_MAG=30
+STEP=5 
+GPU_ID=0
+
+CUDA_VISIBLE_DEVICES="$GPU_ID" \
+
+python evaluation/editing_inference.py \
+--methods="restyle_psp" \
+--domain="churches" \
+--input_data_dir="/home/upc/Mydisk/UBT/dataset/LSUN_church/church_outdoor_val" \
+--input_data_id="results" \
+--output_dir="/home/upc/Mydisk/UBT/Model/restyle-encoder-main/experiment/restyle_church/Ablation/con1_test/edit/images" \
+--saved_embedding_dir="/home/upc/Mydisk/UBT/Model/restyle-encoder-main/experiment/restyle_church/Ablation/con1_test/edit" \
+--directions="clou" \
+--min_factor=-200 \
+--max_factor=200 \
+--step=20 \
+--max_num_images=300 \
+--resize=256 \
+--save_edited_images
+```
+
+
+
