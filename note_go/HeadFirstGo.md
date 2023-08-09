@@ -30,6 +30,21 @@
 
 + `$GOPATH/src`外的源码包不能使用`go install`命令
 
++ **go build与go install的区别**：
+
+  + 通过`go build`加上要编译的Go源文件名，我们即可**在当前文件夹下**得到一个可执行文件，默认情况下这个文件的名字为源文件名字去掉.go后缀
+
+  + 与build命令相比，install命令在编译源码后还会将可执行文件或库文件安装到约定的目录下
+    + go install编译出的可执行文件以其所在目录名(DIR)命名
+
+    + go install将可执行文件安装到与src同级别的bin目录下，bin目录由go install自动创建
+
+    + go install将可执行文件依赖的各种package编译后，放在与src同级别的pkg目录下
+
++ **文件权限**
+
+  + `0: 没有权限`，`1: 执行`，`2: 写`，`3: 写、执行`，`4: 读`，`5: 读、执行`，`6: 读、写`，`7: 读、写、执行`
+
   ## 包名和文件夹名
 
   + 一个文件夹下只能有一个包，即该文件夹下的`.go`文件的第一行代码，`package 包名`都相同
@@ -44,6 +59,7 @@
     + 代码中`import`的是包的导入路径、使用的是包名
     + Go语言不要求包名与导入路径有任何关系，但是按照惯例，导入路径的最后一段用作包名 => 包名应与其所在文件夹名相同
     + 因此：包名应该与保存它的目录名相匹配，但是main包是一个例外
+
 
 # 基础语法
 
@@ -63,6 +79,26 @@
   + **返回值的声明**：可以同时声明多个返回值，用小括号括起来；声明时可以类似参数声明，为每一个返回值命名；返回值命名主要是为了方便程序员阅读，但是也属于函数块，可以不用，用的话也不需要再在函数中声明，直接赋值即可；
   + 有返回值的函数最后一行必须是`return`语句，否则会导致编译错误
 + **指针**：指向某变量的地址的值
++ **支持一级函数**：可以将函数分配给变量，然后从这些变量调用函数
+
+  + ```go
+    func sayHi() {
+        fmt.Println("Hi")
+    }
+    func divide(a int, b int) float64 {
+        return float64(a) / float64(b)
+    }
+    
+    func main() {
+        var greeterFunction func()
+        var mathFunction func(int, int) float64
+        greeterFunction = sayHi   // 带括号表示调用，所以这里不需要括号
+        mathFunction = divide
+        greeterFunction()
+        fmt.Println(mathFunction(5, 2))
+    }
+    ```
+
 
 # 常用方法
 
@@ -218,12 +254,257 @@
   func (m MyType) sayHi() {
       fmt.Println("Hi, from", m)
   }
+  
+  value := MyType("Value")
+  value.sayHi() // value：接收器；(m MyType)：接收器
   ```
 
 + 一旦方法被定义在了某个类型上，它就能被该类型的任何值调用
-+ `(m MyType)`定义一个接收器
+
++ 对`int`等全局类型定义方法会导致编译错误
+
++ `(m MyType)`定义一个接收器参数
+
   + 接收器参数的类型是与之联系的方法的类型，除此之外，与其他函数参数一样
   + 接收器参数的名称一般定义为类型名称的第一个字母的小写
   + Go使用接收器参数来代替其他语言中的`self`或者`this`，后者是隐式的，而接收器参数是显式声明的
   + 方法和类型必须定义在同一个包中
 
+  + 方法中接收器参数类型可以为指针类型，且以值类型接收器进行调用，反过来同样可以，方法会自动对接收器是指针类型还是值类型进行转换
+  + 值类型和指针类型的接收器，尽量不要在一个包中混用
+
+# 封装和嵌入
+
+## 封装
+
++ **定义**：将程序中的数据隐藏在一部分代码中，而对另一部分不可见的方法称为封装
+
++ ```go
+  package chapter10
+  
+  import "errors"
+  
+  type Date struct {
+  	year  int
+  	month int
+  	day   int
+  }
+  
+  func (d *Date) SetYear(year int) error {
+  	if year < 1 {
+  		return errors.New("invalid year")
+  	}
+  	d.year = year
+  }
+  
+  func (d *Date) Year() int {
+  	return d.year
+  }
+  ```
+
++ 将包的中的类型、方法设置为可导出的，类型的字段设置为不可导出的
+  + 未导出的变量、struct字段、函数、方法等仍然能够被相同包的导出的函数或者方法访问
++ 以方法的方式对字段的值进行访问
+  + **setter方法**：用来设置字段或者基础类型中的其他值的方法
+  + **getter方法**：获取值
+  + struct字段的值应该是不可导出的，为了防止用户绕过setter方法中的数据校验，直接赋值无效数据
+
+## 嵌入
+
++ **定义**：一个类型使用匿名字段的方式保存到另一个struct类型中，被称为嵌入了struct
++ 嵌入类型的（可导出的）方法会被提升到外部类型，它们可以被外部类型直接调用，就像它们是在外部类型上定义的一样
+
+# 接口
+
++ **定义**：在Go中，一个接口被定义为特定值预期具有的一组方法。
+
+  + ```go
+    // 可以把接口看作需要类型实现的一组行为
+    type myInterface interface {
+        methodWithoutParameters()
+        methodWithParameter(float64)
+        methodWithReturnValue() string
+    }
+    ```
+
++ **某个类型满足接口**：拥有接口定义的所有方法的类型被称做满足那个接口
+  
+  + 满足接口的类型可以用在任何需要接口的地方
+  + 类型必须定义了所有接口声明的方法，不能缺少，但允许有其他接口未声明的方法
+  + 类型定义接口声明的方法时，不仅方法名要相同，参数和返回值也要保持一致
+  
++ **具体类型与接口类型**
+
+  + **具体类型**不仅定义了值可以做什么，还定义了值是什么（定义了保存值的数据的基础类型）
+  + **接口类型**不关心值是如何存储的，仅仅描述了这个值能做什么
+  + 接口类型定义了方法，具体类型应该实现所有这些方法才算，这个类型满足这个接口。且这个过程是自动的，不再需要额外声明。
+
++ 定义了接口类型，声明了接口类型的变量，**具体类型如果满足接口，就可以把具体类型的值赋给接口类型的变量**，此变量只能调用接口类型定义的方法。
+
+  + ```go
+    package main
+    
+    import "fmt"
+    
+    type VoiseMaker interface {
+    	MakeSound()
+    }
+    
+    type Whistle string
+    
+    func (w Whistle) MakeSound() {
+    	fmt.Println("Tweet!")
+    }
+    
+    type Horn string
+    
+    func (h Horn) MakeSound() {
+    	fmt.Println("Honk!")
+    }
+    
+    func main() {
+    	var toy VoiseMaker
+    	toy = Whistle("Toyco Canary")
+    	toy.MakeSound()
+    	toy = Horn("Toyco Blaster")
+    	toy.MakeSound()
+    }
+    ```
+
+
++ 当具体类型的方法是定义在指针上时，将具体类型的值赋给接口类型变量时，应该把值的指针赋给它，不能直接使用值
+  + 因为我的接口变量要调用这个定义在指针上的方法，所以它理应是一个指针，而不是值
+
++ **类型断言**：当将一个具体类型的值赋给一个接口类型的变量时，类型断言可以取回具体类型
+
+  + ```go
+    type Robot string
+    func (r Robot) MakeSound() {
+        fmt.Println("Beep Beep")
+    }
+    func (r Robot) Walk() {
+        fmt.Println("Powering legs")
+    }
+    
+    type NoiseMaker interface {
+        MakeSound()
+    }
+    func main() {
+        var noiseMaker NoiseMaker = Robot("Botco Ambler")
+        noiseMaker.MakeSound()
+        noiseMaker.Walk() //编译错误，不能调用接口外方法
+        var robot Robot, ok = noiseMaker.(Robot)  // 类型断言；ok用来判断断言是否成功；断言失败，是一个运行时错误
+        robot.Walk()
+    }
+    ```
+
++ **空接口**
+
+  + 一个不需要任何方法的接口称为空接口
+
+  + ```go
+    type Anything interface {
+    }
+    ```
+
+  + 不需要实现任何方法来满足空接口，所以所有的类型都满足它
+  + **常用在**定义一个接受空接口作为参数的函数，便可以传入任何类型的值作为参数
+  + 但注意，空接口类型的值无法做任何操作，因为没有任何函数可以调用，此时需要使用类型断言来获得具体类型的值
+
+# 错误处理
+
++ **延迟函数调用**：`defer`关键字用于函数和方法调用前，使此函数或方法在当前函数剩余代码运行完并退出当前函数后再被调用
++ **panic函数**
+  + 当程序出现`panic`时，当前函数停止运行，程序打印日志消息并崩溃
+  + `panic`函数需要一个满足空接口的参数（即，任何类型），该参数将被转换为字符串（如果需要），并作为`panic`日志信息的一部分打印出来
+  + 当程序法生`panic`时，`panic`输出中包含堆栈跟踪，即调用堆栈列表
+    + **调用堆栈**：即在任何给定点上处于活动状态的函数调用的列表
+  + 延迟调用在崩溃前完成
+    + 延迟调用函数(`defer`)仍然会被执行，执行顺序与被延迟的顺序相反
+  + **通常**，调用`panic`应该留给”不可能的”情况，而不是无法访问的文件、网络故障、错误的用户输入等通常被认为是“正常的”错误
++ **recover函数**
+  + 如果延迟的函数调用`recover`函数，程序将从`panic`状态中恢复（如果有的话）
+  + `recover`函数返回最初传递给`panic`函数的任何值
+  + 正常程序执行过程中调用`recover()`只返回`nil`
++ `recover`并不会使程序出现`panic`时恢复执行，至少不会完全恢复，因为产生`panic`的函数会立即返回，该函数块中`panic`之后的代码都不会执行（这也是为什么要用`defer`去延迟调用`recover`），但在产生`panic`的函数返回后，将正常执行后面的程序
++ **在调用可能引起panic的代码之前，延迟调用调用recover函数的函数**
+
+# 并发任务
+
++ **goroutine**：即并发任务
+
+  + 在其他语言中有个类似的概念，叫做线程，但`goroutine`比现程需要更少的计算机内存、更快的启动和停止时间，意味着可以同时运行更多的`goroutine`
+  + `goroutine`允许并发：暂停一个任务来处理其他任务。在某些情况下，它们允许并行：同时处理多个任务
+  + **启动一个goroutine**：使用`go myFunction()`
+  + 函数返回值不能在go语句中使用，最直观的一个原因是因为当调用函数试图使用返回值时，返回值还没有准备好
+
++ **channel**：`goroutine`之间的一种交流方式
+
+  + `channel`允许将一个值从一个`goroutine`发送到另一个，还确保接受的`goroutine`尝试使用该值之前，该值已经发送
+
+  + 每个`channel`只携带特定类型的值：`var myChannel chan float64`
+
+  + ```go
+    var myChannel chan float64
+    myChannel = make(chan float64)
+    // or
+    myChannel := make(chan float64)
+    ```
+
+  + 发送和接受值
+
+    + ```go
+      func greeting(myChannel chan string) {
+      	myChannel <- "hi"  //在channel上发送值：myChannel <- <value>
+      }
+      
+      func main() {
+      	myChannel := make(chan string)
+          go greeting(myChannel)
+          fmt.Println(<-myChannel)  //在channel上接收值：<-myChannel
+      }
+      ```
+
+  + **同步**
+
+    + `channel`通过`blocking(阻塞)`来使各个`goroutine`之间同步
+    + 发送操作阻塞发送的`goroutine`，直到另一个`goroutine`在同一`channel`上执行了接收操作
+    + 反之亦然：接收操作阻塞接收的`goroutine`，直到另一个`goroutine`在同一`channel`上执行了发送操作
+
+
+# 自动化测试
+
++ **自动化测试**是一个独立的程序，它执行主程序的组件，并验证它们的行为是否符合预期
++ 每次添加一个新特性，都通过运行程序来测试它，这只能测试到新特性，如果还要所有的旧特性，以确保新的更改没有破坏任何东西，自动化测试将发挥作用
++ **自动化测试**使用一组特定的输入运行代码，并寻找特定的结果。只要代码的输出与期望值匹配，则测试将“通过”
+
++ 测试文件的代码由普通的Go函数组成，但需要遵循一定的约定才能使用`go test`工具
+
+  + `go test <包名>`命令后：`-v`显示所有测试信息；`-run <模糊匹配函数名>`只测试模糊匹配到的测试函数
+
+  + 测试代码与被测试代码可以同包也可以不同包，但如果想访问未导出类型或函数，则需要同包
+
+  + 测试文件需要以`_test.go`结尾，测试函数需要以`Test`开头，否则会被`go test`忽略
+
+  + 测试函数应该接收单个参数：一个指向`testing.T`值的指针
+
+  + 通过调用`testing.T`值的一些方法（比如Error）来报告测试失败和错误信息
+
+  + ```go
+    func TestOneElement(t *testing.T) {
+        list := []string("apple")
+        want := "apple"
+        got := JoinWithCommas(list)
+        if got != want {
+            t.Error(errorString(list, got, want))
+        }
+    }
+    
+    func errorString(list []string, got string, want string) string {
+        return fmt.Sprintf("JoinWithCommas(%#v) = \"%s\", want \"%s\"", list, got, want)
+    }
+    ```
+
++ **测试驱动开发**：编写测试 -> 确保通过 -> 重构代码
+
+  + 自由地修改代码，而不用担心代码被破坏是需要单元测试的真正原因

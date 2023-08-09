@@ -1,0 +1,6 @@
+宝塔面板登录：
+administrator
+12346789
+
+查看开放端口：
+cd /www/server/panel && btpython tools.py panel testpasswd
