@@ -1,13 +1,19 @@
-Go并发编程实战
-
 项目
-慕课网？douyv：jupiter？Go Web编程？
-孔令飞 IAM系统 企业级Go项目开发实战
+7天用go从零实现系列
+Kratos 项目 入门
+https://www.bilibili.com/video/BV1t3411h7uA/?spm_id_from=333.788&vd_source=48f4d2985ad54326394e2e5947d91c22
+孔令飞 企业级Go项目开发实战 IAM系统
+极客时间初级go工程师训练营 小微书项目
+
 
 Go底层原理剖析
+Go语言高级编程
 
 数据结构与算法：
 程序员面试金典：leetcode（109题）：https://leetcode.cn/problem-list/xb9lfcwi/
 剑指offer2：leetcode（75题）：https://leetcode.cn/problem-list/xb9nqhhg/
+
+
+// 
 程序员代码面试指南；牛客（188题）：https://www.nowcoder.com/exam/oj/ta?page=1&pageSize=50&search=&tpId=101&type=101
 剑指offer：牛客（81题）：https://www.nowcoder.com/exam/oj/ta?page=2&tpId=13&type=265
