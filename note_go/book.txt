@@ -7,13 +7,6 @@ https://www.bilibili.com/video/BV1t3411h7uA/?spm_id_from=333.788&vd_source=48f4d
 
 
 Go底层原理剖析
-Go语言高级编程
 
 数据结构与算法：
-程序员面试金典：leetcode（109题）：https://leetcode.cn/problem-list/xb9lfcwi/
-剑指offer2：leetcode（75题）：https://leetcode.cn/problem-list/xb9nqhhg/
-
-
-// 
-程序员代码面试指南；牛客（188题）：https://www.nowcoder.com/exam/oj/ta?page=1&pageSize=50&search=&tpId=101&type=101
-剑指offer：牛客（81题）：https://www.nowcoder.com/exam/oj/ta?page=2&tpId=13&type=265
+剑指offer2

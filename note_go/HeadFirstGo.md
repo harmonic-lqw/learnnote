@@ -564,3 +564,245 @@
 + **测试驱动开发**：编写测试 -> 确保通过 -> 重构代码
 
   + 自由地修改代码，而不用担心代码被破坏是需要单元测试的真正原因
+
+# 泛型
+
+## 定义：
+
++ Go 泛型也称为类型参数。（Go泛型方案的实质：是对类型参数（type parameter）的支持）
+  + 泛型函数（generic function）：带有类型参数的函数；
+  + 泛型类型（generic type）：带有类型参数的自定义类型；
+  + 泛型方法（generic method）：泛型类型的方法。
++ 我们可以在函数声明、类型定义、（方法声明的 receiver 部分）使用类型参数，来实现泛型函数和泛型类型。
++ 我们还需为类型参数设定约束，通过扩展的 interface 类型定义，我们可以定义这种约束。
++ 类型参数要求：通常是首字母大写的，必须是具名的，且命名唯一。
+
+## 泛型函数
+
++ ```go
+  package main
+  
+  import "fmt"
+  
+  type ordered interface {
+      ~int | ~string
+  }
+  
+  
+  // 泛型函数定义
+  // [T ordered]：类型参数列表（type parameters list），位于函数名与函数参数列表之间，由方括号括起的固定个数的、由逗号分隔的类型参数声明组成
+  // T：类型形参；ordered：类型约束
+  // 函数一旦拥有类型参数，就可以用该参数作为常规参数列表和返回值列表中修饰参数和返回值的类型。
+  func maxGenerics[T ordered](sl []T) T {
+  	if len(sl) == 0 {
+  		fmt.Println("slice is empty")
+  	}
+  
+  	max := sl[0]
+  	for _, v := range sl[1:] {
+  		if v > max {
+  			max = v
+  		}
+  	}
+  	return max
+  }
+  
+  
+  // 泛型函数调用
+  // 类型实参满足约束要求：类型满足约束中定义的所有方法；类型的底层类型在约束中声明
+  type mystring string
+  
+  func main() {
+  	var m = maxGenerics[int]([]int{1, 2, -4}) // 显示传入类型实参
+  	fmt.Println(m)
+  	fmt.Println(maxGenerics([]string{"11", "5", "2"}))  // 类型实参的自动推断（function argument type inference）
+  	fmt.Println(maxGenerics([]mystring{"1", "3", "0"}))
+  }
+  ```
+
+### 调用分为两阶段：实例化和真正调用
+
++ ![image-20231018144337863](HeadFirstGo.assets/image-20231018144337863.png)
+
++ ```go
+  // 实例化
+  maxGenericsInt := maxGenerics[int] // 实例化后得到的新“机器”：maxGenericsInt
+  fmt.Printf("%T\n", maxGenericsInt) // func([]int) int
+  // 真正调用
+  maxGenericsInt([]int{1, 2, -4, -6, 7, 0}) // 输出：7
+  ```
+
++ 使用相同类型实参对泛型函数进行多次调用时，Go 仅会做一次实例化，并复用实例化后的函数。
+
+
+
+## 泛型类型
+
++ 所谓泛型类型，就是在类型声明中带有类型参数的 Go 类型：
+
++ ```go
+  type maxableSlice[T ordered] struct {
+      elems []T
+  }
+  ```
+
++ ```go
+  // 泛型类型时也会有一个实例化（instantiation）过程:
+  var sl = maxableSlice[int]{}
+  // Go 会根据传入的类型实参（int）生成一个新的类型并创建该类型的变量实例
+  ```
+
++ ```go
+  // 暂时不支持类型实参的自动推断
+  var sl = maxableSlice {
+      elems: []int{1, 2, -4, -6, 7, 0}, // 编译器错误：cannot use generic type maxableSlice[T ordered] without instantiation
+  } 
+  ```
+
+## 泛型方法
+
++ 泛型类型定义的方法称为泛型方法
+
++ ```go
+  type maxableSlice[T ordered] struct {
+      elems []T
+  }
+  
+  // 在定义泛型类型的方法时，方法的 receiver 部分不仅要带上类型名称，还需要带上完整的类型形参列表（如 maxableSlice[T]）
+  // 这些类型形参后续可以用在方法的参数列表和返回值列表中。
+  // 注意：
+  // receiver 中类型参数名字可以与泛型类型中的类型形参名字不同，但位置和数量一定要对上，没用到就用"_"占位
+  // 泛型方法自身不可以再支持类型参数了
+  func (sl *maxableSlice[T]) max() T {
+      if len(sl.elems) == 0 {
+          panic("slice is empty")
+      }
+  
+      max := sl.elems[0]
+      for _, v := range sl.elems[1:] {
+          if v > max {
+              max = v
+          }
+      }
+      return max
+  }
+  ```
+
+## 约束
+
++ ![image-20231018173013560](HeadFirstGo.assets/image-20231018173013560.png)
++ Go 将接口类型分成了两类
+  + 基本接口类型（basic interface type），即其自身和其嵌入的接口类型都只包含方法元素，而不包含类型元素。基本接口类型不仅可以当做常规接口类型来用，即声明接口类型变量、接口类型变量赋值等，还可以作为泛型类型参数的约束。
+  + 一般接口（general interface type），直接或间接（通过嵌入其他接口类型）包含了类型元素的接口类型。这类接口类型**仅可以**用作泛型类型参数的约束，或被嵌入到其他仅作为约束的接口类型中。
+
+## 适用场景
+
+### 编写通用数据结构时
+
++ 泛型前使用空接口`interface{}`来实现通用代码的不足
+  + Go 编译器无法在编译阶段对进入数据结构中的元素的类型进行静态类型检查；
+  + 要想得到元素的真实类型，不可避免要进行类型断言或 type switch 操作；
+  + 不同类型数据赋值给 interface{} 或从 interface{} 还原时执行的装箱和拆箱操作带来的额外开销。
+
+### 操作Go原生容器类型时
+
++ 一些操作容器类型（比如切片、map、channel 等）的算法，此类容器算法的泛型实现使得**容器算法**与**容器内元素类型**彻底**解耦**！
++ 如果函数具有切片、map 或 channel 这些 Go 内置容器类型的参数，并且函数代码未对容器中的元素类型做任何特定假设，那我们使用类型参数可能很有帮助。
++ 在没有泛型语法之前，实现这样的函数通常需要使用反射。不过使用反射，会让代码
+  + 可读性大幅下降
+  + 编译器无法做静态类型检查
+  + 运行时开销也大得很
+
+### 不同类型实现一些方法的逻辑相同时
+
+# 指针
+
+## 三种是常见指针
+
+- *类型:普通指针类型，用于传递对象地址，不能进行指针运算。
+- unsafe.Pointer:通用指针类型，用于转换不同类型的指针，不能进行指针运算，不能读取内存存储的值（必须转换到某一类型的普通指针）。
+- uintptr:用于指针运算，GC 不把 uintptr 当指针，uintptr 无法持有对象。uintptr 类型的目标会被回收，因此需要uintptr进行指针运算时，不能创建和使用uintptr类型的临时变量，因为其保存的指针可能在垃圾回收后，指向的变量跑到其他位置，当前位置可能是一个无效地址空间。
+
+## 指针的转换
+
++ 任何类型的指针都可以被转化为Pointer
++ Pointer可以被转化为任何类型的指针
++ uintptr可以被转化为Pointer
++ Pointer可以被转化为uintptr
++ 可以看出：**unsafe.Pointer 是桥梁，可以让任意类型的指针实现相互转换，也可以将任意类型的指针转换为 uintptr 进行指针运算。**
+
+
+
+# 反射
+
+## demo
+
++ ```go
+  package main
+  
+  import (
+  	"fmt"
+  	"reflect"
+  )
+  
+  // Main function
+  func main() {
+  	val1 := []int{1, 2, 3, 4}
+  
+  	var val2 reflect.Value = reflect.ValueOf(&val1)
+  	fmt.Println("&val2 Kind:", val2.Kind())
+  	fmt.Println("&val2 Type:", val2.Type())
+  	fmt.Println("&val2 value:", val2)
+  	fmt.Println("=======")
+  	// using the function
+  	indirectI := reflect.Indirect(val2)
+  	fmt.Println("indirectI  Kind:", indirectI.Kind())
+  	fmt.Println("indirectI  Type:", indirectI.Type())
+  	fmt.Println("indirectI  value:", indirectI)
+  }
+  /* output
+  &val2 Kind: ptr
+  &val2 Type: *[]int
+  &val2 value: &[1 2 3 4]
+  =======
+  indirectI  Kind: slice
+  indirectI  Type: []int
+  indirectI  value: [1 2 3 4]
+  */
+  ```
+
+
+## demo2
+
++ ```go
+  // 通过反射，我们能够非常容易地获取某个结构体的所有方法，和该方法的所有参数类型和返回值
+  func main() {
+  	var wg sync.WaitGroup
+  	typ := reflect.TypeOf(&wg)
+  	for i := 0; i < typ.NumMethod(); i++ {
+           // 获取结构体的方法
+  		method := typ.Method(i)
+           // 获取该方法的所有参数类型和返回值
+  		argv := make([]string, 0, method.Type.NumIn())
+  		returns := make([]string, 0, method.Type.NumOut())
+  		// j 从 1 开始，第 0 个入参是 wg 自己。
+  		for j := 1; j < method.Type.NumIn(); j++ {
+  			argv = append(argv, method.Type.In(j).Name())
+  		}
+  		for j := 0; j < method.Type.NumOut(); j++ {
+  			returns = append(returns, method.Type.Out(j).Name())
+  		}
+  		log.Printf("func (w *%s) %s(%s) %s",
+  			typ.Elem().Name(),
+  			method.Name,
+  			strings.Join(argv, ","),
+  			strings.Join(returns, ","))
+      }
+  }
+  
+  // func (w *WaitGroup) Add(int)
+  // func (w *WaitGroup) Done()
+  // func (w *WaitGroup) Wait()
+  ```
+
+  
