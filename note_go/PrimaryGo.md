@@ -334,6 +334,8 @@
 
 + ![image-20231212183423575](PrimaryGo.assets/image-20231212183423575.png)
 + 在wsl中安装linux子系统，子系统中安装并使用wrk
+  + ![image-20240224151950064](PrimaryGo.assets/image-20240224151950064.png)
+
 
 ## 使用Redis优化性能（数据库向）
 
@@ -457,9 +459,120 @@
 
 + ![image-20240114160510239](PrimaryGo.assets/image-20240114160510239.png)
 
+## 微信扫码登录
 
+### 流程要点总结
 
++ ![image-20240116234106156](PrimaryGo.assets/image-20240116234106156.png)
 
++ ![image-20240116234036845](PrimaryGo.assets/image-20240116234036845.png)
+
++ 用户通过第三方访问`https://open.weixin.qq.com/connect/qrconnect?appid=APPID&redirect_uri=REDIRECT_URI&response_type=code&scope=SCOPE&state=STATE#wechat_redirect`拿到临时授权码`code`，之后根据`redirect_url`跳转自己注册的第三方应用，第三方应用拿到`code`后，（相当于）对`https://api.weixin.qq.com/sns/oauth2/access_token?appid=APPID&secret=SECRET&code=CODE&grant_type=authorization_code`发起调用获取`access_token`
+  + 当第三方拿到`access_token`就认为用户成功登录，用户可以访问第三方资源
+  + 第三方可以通过`access_token`，从微信平台获取用户的头像、昵称等公开基本信息，但通常用不到
+
+## 长短 token
+
++ ![image-20240117212005849](PrimaryGo.assets/image-20240117212005849.png)
+
+### 设计与实现
+
++ ![image-20240117212112253](PrimaryGo.assets/image-20240117212112253.png)
++ ![image-20240117212136303](PrimaryGo.assets/image-20240117212136303.png)
+
+## 布隆过滤器
+
++ ![image-20240118184416962](PrimaryGo.assets/image-20240118184416962.png)
++ 用于判定`不存在`是可信的，但是判定`存在`并不一定可信，也就是假阳性问题
+
+## 适配器模式
+
++ ![image-20240122172941004](PrimaryGo.assets/image-20240122172941004.png)
+
+## 日志打印技巧总结
+
++ ![image-20240122203500192](PrimaryGo.assets/image-20240122203500192.png)
++ 第三点装饰器方法：就是通过再实现一个接口，在方法前后实现日志打印，类似于本项目`log.go`中的`responseWriter`
+
+## TDD
+
++ ![image-20240203160035720](PrimaryGo.assets/image-20240203160035720.png)
++ ![image-20240203160314706](PrimaryGo.assets/image-20240203160314706.png)
+
++ ![image-20240203190948330](PrimaryGo.assets/image-20240203190948330.png)
+
+## 制作库和线上库
+
++ ![image-20240203214129295](PrimaryGo.assets/image-20240203214129295.png)
++ ![image-20240203214201244](PrimaryGo.assets/image-20240203214201244.png)
+
+### 同步
+
++ ![image-20240204150640319](PrimaryGo.assets/image-20240204150640319.png)
+
+## 存储状态映射
+
++ ![image-20240219180115423](PrimaryGo.assets/image-20240219180115423.png)
+
+## MongoDB
+
++ ![image-20240219181016108](PrimaryGo.assets/image-20240219181016108.png)
++ ![image-20240219191728751](PrimaryGo.assets/image-20240219191728751.png)
+
+### BSON 中的 EDMA 类型
+
++ ![image-20240219191841377](PrimaryGo.assets/image-20240219191841377.png)
+
+## 雪花算法
+
++ 目的是将长度12的字节切片（mongoDB中的 ObjectID），转换成 int64
++ ![image-20240219210010450](PrimaryGo.assets/image-20240219210010450.png)
++ 含义：一毫秒内可以生成 2^22 个 id
+
+## 利用OSS来存储数据
+
++ ![image-20240220111722928](PrimaryGo.assets/image-20240220111722928.png)
++ ![image-20240220114303565](PrimaryGo.assets/image-20240220114303565.png)
++ ![image-20240220114320834](PrimaryGo.assets/image-20240220114320834.png)
++ ![image-20240220121521643](PrimaryGo.assets/image-20240220121521643.png)
+
+## 业务相关的缓存预加载
+
++ ![image-20240220191549584](PrimaryGo.assets/image-20240220191549584.png)
++ ![image-20240220191641827](PrimaryGo.assets/image-20240220191641827.png)
+
+## 缓存方案
+
++ 创作者发布时缓存，考虑到作者有粉丝，当发布时很可能被访问的情况，并且可以根据粉丝多E少灵活设置过期时间
++ 创作者列表预加载第一页，但在新写文章、编辑文章、发表的时候都要清除相关的缓存
++ 大对象和小对象是否需要缓存
+
+## Kafka
+
++ ![image-20240222090157098](PrimaryGo.assets/image-20240222090157098.png)
+
+### 基本概念
+
++ ![image-20240222090411161](PrimaryGo.assets/image-20240222090411161.png)
++ ![image-20240222090417742](PrimaryGo.assets/image-20240222090417742.png)
++ ![image-20240222091057645](PrimaryGo.assets/image-20240222091057645.png)
++ ![image-20240222091120140](PrimaryGo.assets/image-20240222091120140.png)
++ ![image-20240222091150790](PrimaryGo.assets/image-20240222091150790.png)
++ ![image-20240222091747269](PrimaryGo.assets/image-20240222091747269.png)
++ ![image-20240222092321549](PrimaryGo.assets/image-20240222092321549.png)
++ ![image-20240222092335267](PrimaryGo.assets/image-20240222092335267.png)
+
+## Context
+
+### 基本概念
+
++ ![image-20240225151726759](PrimaryGo.assets/image-20240225151726759.png)
+
+### 第十周
+
+## 告警思路
+
++ ![image-20240225165604285](PrimaryGo.assets/image-20240225165604285.png)
 
 
 
@@ -525,3 +638,37 @@
 ### 维护一个高可用的短信服务
 
 + ![image-20240114224501211](PrimaryGo.assets/image-20240114224501211.png)
+
+## week6
+
++ ![image-20240117210641037](PrimaryGo.assets/image-20240117210641037.png)
++ ![image-20240118155650777](PrimaryGo.assets/image-20240118155650777.png)
++ ![image-20240118185224711](PrimaryGo.assets/image-20240118185224711.png)
+
++ ![image-20240118185154018](PrimaryGo.assets/image-20240118185154018.png)
+
++ ![image-20240122110553812](PrimaryGo.assets/image-20240122110553812.png)
+
++ ![image-20240122204549649](PrimaryGo.assets/image-20240122204549649.png)
+
+## week7
+
++ ![image-20240204151724481](PrimaryGo.assets/image-20240204151724481.png)
+
+## week8
+
++ ![image-20240220122049436](PrimaryGo.assets/image-20240220122049436.png)
+
+### ESR原则
+
++ ![image-20240220122556997](PrimaryGo.assets/image-20240220122556997.png)
+
++ ![image-20240220231259105](PrimaryGo.assets/image-20240220231259105.png)
++ ![image-20240220231443709](PrimaryGo.assets/image-20240220231443709.png)
+
+## week9
+
++ ![image-20240222214541385](PrimaryGo.assets/image-20240222214541385.png)
++ ![image-20240222214702020](PrimaryGo.assets/image-20240222214702020.png)
++ ![image-20240222214920317](PrimaryGo.assets/image-20240222214920317.png)
+  + 最后一句话的意思：在异步消费的时候，不能一个消息开一个 goroutine，而是相同 msg.Key 的哈希值的消息要在同一个 goroutine 里按顺序处理完。
